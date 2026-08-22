@@ -11,8 +11,7 @@
   },
 
   "routes": [
-    { "pattern": "xsteer.in", "custom_domain": true },
-    { "pattern": "www.xsteer.in", "custom_domain": true }
+    { "pattern": "xsteer.in", "custom_domain": true }
   ],
 
   "env": {
