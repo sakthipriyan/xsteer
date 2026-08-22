@@ -27,7 +27,15 @@ CF_API="https://api.cloudflare.com/client/v4"
 SS_API="https://spaceship.dev/api/v1"
 
 die() { echo "error: $*" >&2; exit 1; }
-need() { [ -n "${!1:-}" ] || die "$1 is not set"; }
+# A leftover placeholder is non-empty, so an -n check alone would sail past it and
+# fail later as an opaque auth error from the vendor. Catch it here instead.
+need() {
+  local v="${!1:-}"
+  [ -n "$v" ] || die "$1 is not set — see ~/.xsteer-env"
+  case "$v" in
+    REPLACE_ME*) die "$1 is still the placeholder value from ~/.xsteer-env" ;;
+  esac
+}
 
 # Reads .success from a Cloudflare response and surfaces the real error message
 # rather than a bare exit code.
