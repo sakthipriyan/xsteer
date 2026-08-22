@@ -14,6 +14,34 @@ workflow costs a deploy, never the domain's search presence.
 
 ---
 
+## Scripted setup
+
+Steps 1–2 and 5 can be done from the terminal instead of two dashboards —
+`scripts/setup-dns.sh` drives the Cloudflare API and Spaceship's public API.
+Read-only first:
+
+```bash
+./scripts/setup-dns.sh status
+```
+
+Credentials come from the environment and are never echoed. Keep them outside the
+repo:
+
+```bash
+set -a; source ~/.xsteer-env; set +a
+./scripts/setup-dns.sh apply
+./scripts/setup-dns.sh wait
+```
+
+Two things the script cannot do for you: creating the Cloudflare API token and
+creating the Spaceship API key both require their respective dashboards once.
+
+Note that zone creation needs a **different, broader token** than CI uses — the Workers
+token in step 3 below cannot create zones. Make a temporary one with `Zone:Zone:Edit`
+and `Zone:DNS:Edit`, then delete it when setup is done.
+
+---
+
 ## One-time setup
 
 Steps 1–4 are manual and can only be done by the account owner.
