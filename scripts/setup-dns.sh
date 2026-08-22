@@ -146,8 +146,15 @@ for r in json.load(sys.stdin):
     echo
     echo "these apex records conflict with the Worker custom domain and will be deleted:"
     echo "$doomed" | awk '{printf "  %-6s %s\n", $2, $3}'
-    read -r -p "delete them? [y/N] " ok
-    [ "$ok" = "y" ] || die "aborted"
+    # ASSUME_YES exists so this can run from a non-interactive shell, where `read`
+    # would hit EOF and abort halfway through. It is never the default: deleting
+    # DNS records should take a deliberate keystroke or a deliberate flag.
+    if [ "${ASSUME_YES:-}" = "1" ]; then
+      echo "  ASSUME_YES=1 — proceeding without prompting"
+    else
+      read -r -p "delete them? [y/N] " ok
+      [ "$ok" = "y" ] || die "aborted"
+    fi
     while read -r id _ _; do
       cf DELETE "/zones/$zid/dns_records/$id" >/dev/null
     done <<<"$doomed"
