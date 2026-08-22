@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xsteer",
+  "compatibility_date": "2026-08-22",
+
+  // An assets-only Worker: there is no script, so requests are served straight from
+  // the edge with no Worker invocation and no per-request cost.
+  "assets": {
+    "directory": "./web/dist",
+    "not_found_handling": "404-page"
+  },
+
+  "routes": [
+    { "pattern": "xsteer.in", "custom_domain": true },
+    { "pattern": "www.xsteer.in", "custom_domain": true }
+  ],
+
+  "env": {
+    // Same code as production; the build differs only in crawler policy, which
+    // web/scripts/seo.mjs bakes in from DEPLOY_ENV.
+    "beta": {
+      "name": "xsteer-beta",
+      "assets": {
+        "directory": "./web/dist",
+        "not_found_handling": "404-page"
+      },
+      "routes": [{ "pattern": "beta.xsteer.in", "custom_domain": true }]
+    }
+  }
+}

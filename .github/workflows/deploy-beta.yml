@@ -1,0 +1,49 @@
+name: Deploy Beta
+
+# Every merge to main goes live on beta.xsteer.in. Production only moves on a tag,
+# so main is always safe to merge into.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to beta.xsteer.in
+    runs-on: ubuntu-latest
+    environment:
+      name: beta
+      url: https://beta.xsteer.in
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build site
+        working-directory: web
+        env:
+          DEPLOY_ENV: beta
+        run: npm run build
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env beta

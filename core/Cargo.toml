@@ -1,0 +1,18 @@
+[package]
+name = "xsteer-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Domain model and planning engine for Xsteer"
+
+[dependencies]
+xfina = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }

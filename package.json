@@ -1,0 +1,16 @@
+{
+  "name": "xsteer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm --prefix web run build",
+    "build:beta": "DEPLOY_ENV=beta npm --prefix web run build",
+    "build:production": "DEPLOY_ENV=production npm --prefix web run build",
+    "dev": "npm --prefix web run dev",
+    "deploy:beta": "npm run build:beta && wrangler deploy --env beta",
+    "deploy:production": "npm run build:production && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.125.0"
+  }
+}

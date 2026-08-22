@@ -1,0 +1,17 @@
+[package]
+name = "xsteer-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WASM bindings for Xsteer: xfina parsing plus the Xsteer planning engine"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+xsteer-core = { path = "../core" }
+xfina = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
