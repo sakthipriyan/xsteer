@@ -15,14 +15,25 @@ const DIST = join(import.meta.dirname, '..', 'dist')
 const env = process.env.DEPLOY_ENV ?? 'beta'
 const isProduction = env === 'production'
 
+// Beta deliberately ALLOWS crawling. Disallow and noindex are not additive — they
+// conflict. A disallowed crawler never fetches the page, so it never sees the
+// X-Robots-Tag below, and the bare URL can still surface in results when something
+// links to it. Letting the crawler in is what makes noindex binding.
+//
+// It also sidesteps Cloudflare's Managed robots.txt, which prepends its own
+// `User-agent: * / Allow: /` block to whatever we serve. Two conflicting groups for
+// the same agent resolve differently across crawlers; agreeing with it removes the
+// ambiguity entirely.
 const robots = isProduction
   ? `User-agent: *
 Allow: /
 
 Sitemap: https://xsteer.in/sitemap.xml
 `
-  : `User-agent: *
-Disallow: /
+  : `# Crawling is allowed on purpose. Every response on this host carries
+# X-Robots-Tag: noindex, nofollow — see web/scripts/seo.mjs.
+User-agent: *
+Allow: /
 `
 
 // _headers is honored by Cloudflare Workers static assets, same syntax as Pages.
