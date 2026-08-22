@@ -5,7 +5,7 @@ planner algorithm; this file holds the working rules.
 
 ## Architecture in one paragraph
 
-Statements are parsed by the published `xfina` crate and normalized by `core/ingest`
+Statements are parsed by the published `Xfina` crate and normalized by `core/ingest`
 into a `Vault` — accounts, policies, cards, inflows, transactions, tagging rules. The
 planner reads a `Vault` and emits a `Plan`: an ordered, dated list of transfers, card
 payments and investments. `wasm/` exposes both parsing and planning as a single module.
@@ -16,8 +16,8 @@ payments and investments. `wasm/` exposes both parsing and planning as a single 
 1. **No financial logic in JavaScript.** If it computes, decides, or rounds a number the
    user acts on, it belongs in `core/`. Vue formats and renders; that is all. This is
    what makes the engine testable and the numbers auditable.
-2. **`xfina` is a published dependency, never a path dependency.** Needing an
-   unreleased parser change means cutting an `xfina` release first. Keep the version
+2. **`Xfina` is a published dependency, never a path dependency.** Needing an
+   unreleased parser change means cutting an `Xfina` release first. Keep the version
    requirement in the workspace `Cargo.toml` and in `wasm::xfina_version()` in step.
 3. **Money is `Money`, never `f64`.** It wraps `Decimal`. Floats never touch an amount.
 4. **The planner is deterministic.** Ties break on `AccountId`. The same vault must
@@ -33,7 +33,7 @@ payments and investments. `wasm/` exposes both parsing and planning as a single 
 
 ## Conventions
 
-- **Institution names in full**, matching xfina: `"HDFC Bank"`, `"ICICI Bank"`,
+- **Institution names in full**, matching Xfina: `"HDFC Bank"`, `"ICICI Bank"`,
   `"State Bank of India"`, `"Bank of Baroda"`. Never `"HDFC"`.
 - **Dates**: `NaiveDate` for statement periods, due dates, transaction dates. Indian
   statements are IST — parse with `Asia/Kolkata` before any UTC conversion.

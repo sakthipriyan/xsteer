@@ -12,7 +12,7 @@ const steps = [
   {
     n: '01',
     title: 'Upload your statements',
-    body: 'Bank accounts, credit cards, mutual fund CAS, IBKR activity. Parsed in your browser by xfina — the files never leave your device.',
+    body: 'Bank accounts, credit cards, mutual fund CAS, IBKR activity. Parsed in your browser by Xfina — the files never leave your device.',
   },
   {
     n: '02',
@@ -46,7 +46,7 @@ const reads = [
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" class="flex items-center gap-2.5">
           <img src="/favicon.svg" alt="" class="h-7 w-7" />
-          <span class="text-lg font-semibold tracking-tight">xsteer</span>
+          <span class="text-lg font-semibold tracking-tight">Xsteer</span>
           <span
             v-if="isBeta"
             class="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-primary"
@@ -183,7 +183,7 @@ const reads = [
               href="https://xfina.dev"
               rel="noopener"
               class="font-medium text-primary underline-offset-4 hover:underline"
-              >xfina</a
+              >Xfina</a
             >, an open-source Rust library for Indian financial statements.
           </p>
         </div>
@@ -202,7 +202,7 @@ const reads = [
           <a href="https://github.com/sakthipriyan/xsteer" rel="noopener" class="hover:text-foreground"
             >GitHub</a
           >
-          <a href="https://xfina.dev" rel="noopener" class="hover:text-foreground">xfina</a>
+          <a href="https://xfina.dev" rel="noopener" class="hover:text-foreground">Xfina</a>
         </div>
       </div>
     </footer>

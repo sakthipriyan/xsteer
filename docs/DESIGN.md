@@ -1,6 +1,6 @@
 # Xsteer — Design
 
-> `xfina` answers **"what happened."** `xsteer` answers **"what should I do this month."**
+> `Xfina` answers **"what happened."** `Xsteer` answers **"what should I do this month."**
 
 Xsteer ingests parsed statements, maintains a private ledger in the browser, holds a
 policy per account, and emits an ordered, dated **to-do list** of money movements.
@@ -15,7 +15,7 @@ Salary  ──▶  Expenses  ──▶  Credit card payment  ──▶  Investab
 
 | Layer | Responsibility | Lives in |
 |---|---|---|
-| **Ingest** | files → `xfina` parse → normalized entities, account identity, dedup | Rust |
+| **Ingest** | files → `Xfina` parse → normalized entities, account identity, dedup | Rust |
 | **Ledger** | unified transactions, tagging rules, manual overrides | Rust |
 | **Registry** | accounts, policies, cards, inflows, target allocation | Rust |
 | **Planner** | balances + obligations + policies → ordered plan | Rust |
@@ -29,7 +29,7 @@ what comes back, and re-encrypts. Every number the user sees was computed in Rus
 
 ## 2. Account identity
 
-`xfina` parses one file at a time and has no notion of "the same account across
+`Xfina` parses one file at a time and has no notion of "the same account across
 statements." Xsteer derives a stable identity:
 
 ```rust
@@ -51,7 +51,7 @@ is persisted as an identity override that wins over the derived key.
 ```rust
 struct Account {
     id: AccountId,
-    institution: String,      // "HDFC Bank" — full names, per xfina convention
+    institution: String,      // "HDFC Bank" — full names, per Xfina convention
     kind: AccountKind,        // Savings | Current | CreditCard | Brokerage | MutualFund
     masked_number: String,
     display_name: String,     // user-supplied: "Salary", "Travel"
@@ -217,7 +217,7 @@ The planner never silently produces an infeasible plan:
 ## 5. Absorbed tools
 
 Each `building-wealth/tools` script is today an island with its own localStorage.
-In xsteer they become views over one model:
+In Xsteer they become views over one model:
 
 | Tool | Becomes |
 |---|---|

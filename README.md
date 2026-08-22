@@ -2,7 +2,7 @@
 
 **Xsteer** turns your financial statements into a month's money to-do list.
 
-[`xfina`](https://github.com/sakthipriyan/xfina) answers *"what happened."*
+[`Xfina`](https://github.com/sakthipriyan/xfina) answers *"what happened."*
 Xsteer answers *"what should I do this month."*
 
 ```
@@ -28,9 +28,9 @@ Everything runs in your browser. Nothing is uploaded anywhere.
 
 | Piece | Choice |
 |---|---|
-| **Parsing** | the published `xfina` crate — no vendored parsers, no path deps |
+| **Parsing** | the published `Xfina` crate — no vendored parsers, no path deps |
 | **Engine** | Rust/WASM. Ledger, policies, planner and allocator all live in `core/` |
-| **UI** | Vue 3 + Vite + Tailwind, following the xfina web app. Renders only — no financial logic |
+| **UI** | Vue 3 + Vite + Tailwind, following the Xfina web app. Renders only — no financial logic |
 | **Storage** | IndexedDB, encrypted at rest with a key derived from a user passphrase |
 | **Shipping** | one WASM module exposing both parsing and planning, so the parse schema cannot drift |
 
@@ -49,11 +49,11 @@ xsteer/
 ├── web/         # Vue 3 + Vite marketing site today, the app later
 ├── core/        # xsteer-core — domain model and planning engine (all the logic)
 │   ├── model/     accounts, policies, cards, ledger, plan
-│   ├── ingest/    xfina output → normalized entities, identity, dedup   [phase 1]
+│   ├── ingest/    Xfina output → normalized entities, identity, dedup   [phase 1]
 │   ├── tagging/   rule engine + manual overrides                        [phase 3]
 │   ├── planner/   the cashflow solver                                   [phase 4]
 │   └── allocator/ drift-minimizing splits                               [phase 5]
-├── wasm/        # xsteer-wasm — bindings: xfina parsing + the engine
+├── wasm/        # xsteer-wasm — bindings: Xfina parsing + the engine
 └── docs/        # DESIGN.md, DEPLOY.md
 ```
 
