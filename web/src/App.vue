@@ -157,8 +157,10 @@ const reads = [
             There is no server to trust
           </h2>
           <p class="mt-4 leading-relaxed text-muted-foreground">
-            Statement parsing and every calculation run as WebAssembly inside your own
-            browser. Your vault is stored encrypted on your device, with a key derived from
+            <span class="font-medium text-foreground"
+              >Statement parsing and every calculation run as WebAssembly inside your own
+              browser.</span
+            > Your vault is stored encrypted on your device, with a key derived from
             a passphrase that is never transmitted and never written down anywhere.
           </p>
           <p class="mt-4 leading-relaxed text-muted-foreground">
