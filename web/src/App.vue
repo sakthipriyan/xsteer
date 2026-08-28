@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import PlanPreview from './components/PlanPreview.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 
 // The beta host serves the same build as production; this is the only thing that
 // differs at runtime, so early users always know which one they are looking at.
@@ -33,9 +34,32 @@ const steps = [
 
 const reads = [
   { kind: 'Bank accounts', items: 'Axis, Bank of Baroda, HDFC, ICICI, State Bank of India' },
-  { kind: 'Credit cards', items: 'HDFC, ICICI' },
+  { kind: 'Credit cards', items: 'Axis, HDFC, ICICI' },
   { kind: 'Mutual funds', items: 'CAMS consolidated statement' },
-  { kind: 'Brokerage', items: 'Interactive Brokers activity statements' },
+  { kind: 'International brokerage', items: 'Interactive Brokers activity statements' },
+]
+
+// The three repositories the product is assembled from. Ordered the way the data
+// flows: parsed by Xfina, computed by Xfingine, planned and rendered by Xsteer.
+const projects = [
+  {
+    name: 'Xfina',
+    tagline: 'Open source data parser',
+    body: 'Reads Indian bank, credit card, mutual fund and brokerage statements into structured data. Rust compiled to WebAssembly, so parsing happens on your machine.',
+    href: 'https://github.com/sakthipriyan/xfina',
+  },
+  {
+    name: 'Xfingine',
+    tagline: 'Open source financial engine',
+    body: 'Pure computation engines for personal finance planning — inflation-adjusted EMI schedules and more. A Rust core, published to crates.io, npm and PyPI.',
+    href: 'https://github.com/sakthipriyan/xfingine',
+  },
+  {
+    name: 'Xsteer',
+    tagline: 'Open source personal finance OS',
+    body: 'This project. Turns a parsed vault into an ordered, dated plan for the month, and gives you the interface to execute it against.',
+    href: 'https://github.com/sakthipriyan/xsteer',
+  },
 ]
 </script>
 
@@ -56,13 +80,11 @@ const reads = [
         </a>
         <nav class="flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#how" class="hidden transition-colors hover:text-foreground sm:inline">How it works</a>
-          <a href="#privacy" class="hidden transition-colors hover:text-foreground sm:inline">Privacy</a>
-          <a
-            href="https://github.com/sakthipriyan/xsteer"
-            class="transition-colors hover:text-foreground"
-            rel="noopener"
-            >GitHub</a
+          <a href="#privacy" class="hidden transition-colors hover:text-foreground sm:inline"
+            >Privacy First</a
           >
+          <a href="#open-source" class="transition-colors hover:text-foreground">Open Source</a>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
@@ -134,7 +156,7 @@ const reads = [
     </section>
 
     <!-- How it works -->
-    <section id="how" class="border-t bg-muted/30">
+    <section id="how" class="scroll-mt-3 border-t bg-muted/30">
       <div class="mx-auto max-w-6xl px-6 py-16">
         <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
         <div class="mt-10 grid gap-8 sm:grid-cols-2">
@@ -150,12 +172,19 @@ const reads = [
     </section>
 
     <!-- Privacy -->
-    <section id="privacy" class="mx-auto max-w-6xl px-6 py-16">
-      <div class="grid gap-10 lg:grid-cols-2 lg:gap-16">
+    <section id="privacy" class="mx-auto max-w-6xl scroll-mt-3 px-6 py-16">
+      <div class="max-w-2xl">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Privacy first</h2>
+        <p class="mt-3 leading-relaxed text-muted-foreground">
+          Your statements are parsed, your plan computed and your vault stored without any
+          of it ever leaving your device.
+        </p>
+      </div>
+      <div class="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
-          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h3 class="text-xl font-semibold tracking-tight sm:text-2xl">
             There is no server to trust
-          </h2>
+          </h3>
           <p class="mt-4 leading-relaxed text-muted-foreground">
             <span class="font-medium text-foreground"
               >Statement parsing and every calculation run as WebAssembly inside your own
@@ -172,22 +201,43 @@ const reads = [
           </p>
         </div>
         <div>
-          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">What it reads</h2>
+          <h3 class="text-xl font-semibold tracking-tight sm:text-2xl">What it reads locally</h3>
           <dl class="mt-6 space-y-4">
             <div v-for="r in reads" :key="r.kind" class="border-b pb-4 last:border-0">
               <dt class="text-sm font-semibold">{{ r.kind }}</dt>
               <dd class="mt-1 text-sm text-muted-foreground">{{ r.items }}</dd>
             </div>
           </dl>
-          <p class="mt-6 text-sm text-muted-foreground">
-            Parsing is powered by
-            <a
-              href="https://xfina.dev"
-              rel="noopener"
-              class="font-medium text-primary underline-offset-4 hover:underline"
-              >Xfina</a
-            >, an open-source Rust library for Indian financial statements.
+        </div>
+      </div>
+    </section>
+
+    <!-- Open source -->
+    <section id="open-source" class="scroll-mt-3 border-t bg-muted/30">
+      <div class="mx-auto max-w-6xl px-6 py-16">
+        <div class="max-w-2xl">
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Open source</h2>
+          <p class="mt-3 leading-relaxed text-muted-foreground">
+            Software that decides what to do with your salary should be software you can
+            read. Every layer &mdash; the parser, the computation engines, and the planner
+            that ties them together &mdash; is a separate Apache-2.0 repository you can
+            audit, fork, or run yourself.
           </p>
+        </div>
+        <div class="mt-10 grid gap-6 sm:grid-cols-3">
+          <a
+            v-for="p in projects"
+            :key="p.name"
+            :href="p.href"
+            rel="noopener"
+            class="group rounded-lg border bg-background p-6 transition-colors hover:border-primary/40"
+          >
+            <h3 class="font-semibold tracking-tight transition-colors group-hover:text-primary">
+              {{ p.name }}
+            </h3>
+            <p class="mt-1 text-sm font-medium text-primary">{{ p.tagline }}</p>
+            <p class="mt-3 text-sm leading-relaxed text-muted-foreground">{{ p.body }}</p>
+          </a>
         </div>
       </div>
     </section>
@@ -200,11 +250,16 @@ const reads = [
         <p>
           Xsteer is being built in the open. Nothing here is investment advice.
         </p>
-        <div class="flex gap-6">
-          <a href="https://github.com/sakthipriyan/xsteer" rel="noopener" class="hover:text-foreground"
-            >GitHub</a
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <span class="font-medium text-foreground">GitHub</span>
+          <a
+            v-for="p in projects"
+            :key="p.name"
+            :href="p.href"
+            rel="noopener"
+            class="transition-colors hover:text-foreground"
+            >{{ p.name }}</a
           >
-          <a href="https://xfina.dev" rel="noopener" class="hover:text-foreground">Xfina</a>
         </div>
       </div>
     </footer>
