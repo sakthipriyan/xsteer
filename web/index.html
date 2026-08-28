@@ -21,6 +21,24 @@
     />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <script>
+      // Runs before first paint, so a dark-mode visitor never sees a white flash. The
+      // module bundle is deferred and would land too late to prevent it. An explicit
+      // choice from the toggle wins; without one the OS preference decides.
+      // Key kept in step with src/components/ThemeToggle.vue.
+      try {
+        var stored = localStorage.getItem('xsteer-theme')
+        if (
+          stored === 'dark' ||
+          (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
+          document.documentElement.classList.add('dark')
+        }
+      } catch (e) {
+        /* storage unavailable — fall through to the light default */
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
