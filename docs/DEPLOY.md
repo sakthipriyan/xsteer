@@ -3,7 +3,7 @@
 | | Host | Deploys when |
 |---|---|---|
 | **Production** | `xsteer.in`, `www.xsteer.in` | a `v*.*.*` tag is pushed, or a manual run |
-| **Beta** | `beta.xsteer.in` | every push to `main` |
+| **Beta** | `beta.xsteer.in` | `cargo xtask beta` on any branch, and every push to `main` |
 
 Both serve the same code from an assets-only Cloudflare Worker. The builds differ in
 exactly one respect: `DEPLOY_ENV=beta` bakes in `noindex` and a `Disallow: /` robots.txt,
@@ -11,6 +11,44 @@ so the beta site can never compete with the real one in search.
 
 `web/scripts/seo.mjs` **defaults to noindex** when `DEPLOY_ENV` is unset. A broken
 workflow costs a deploy, never the domain's search presence.
+
+---
+
+## The release flow
+
+Work happens on a branch, is previewed on beta, then merged and tagged. Beta serves
+whatever branch was last deployed to it — not `main` — so a change is seen in a real
+deploy *before* it lands.
+
+```bash
+git switch -c feat/thing        # work; tests run on every push
+cargo xtask beta                # push the branch and deploy it to beta.xsteer.in
+cargo xtask prepare-release minor   # bump the version, open a CHANGELOG section
+cargo xtask beta                # preview the release commit itself
+
+git rebase main
+git checkout main
+git merge --ff-only feat/thing  # fast-forward, so the tested commit *is* the main commit
+cargo xtask release             # tag it; production deploys
+```
+
+**The merge must be a fast-forward.** A squash creates a new commit, so the SHA beta
+validated would no longer exist on `main` — the tag would point at code that, in that
+exact form, was never deployed anywhere. Rebase first and the fast-forward is always
+available.
+
+### What `cargo xtask release` refuses
+
+| Refuses when | Because |
+|---|---|
+| not on `main`, or the tree is dirty | a release must be a commit that exists |
+| `main` ≠ `origin/main` | tagging a stale local `main` produces a release nobody can find |
+| the tag already exists, locally or on origin | versions are not reusable |
+| no Deploy Beta run succeeded for this exact SHA | beta is only a gate if promotion checks it |
+
+The tag name comes from `[workspace.package] version` in `Cargo.toml` and is never
+typed, so the two cannot drift. `--skip-beta-check` exists for the case where you know
+why the run is missing; it is a deliberate override, not a fallback.
 
 ---
 
@@ -104,10 +142,11 @@ Push to `main` and the **Deploy Beta** workflow runs. Wrangler creates the
 `beta.xsteer.in` custom domain and its DNS record on first deploy — there is nothing to
 add in the Cloudflare DNS tab by hand.
 
-Production goes out on a tag:
+Production goes out on a tag, which `cargo xtask release` creates from the workspace
+version:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+cargo xtask release
 ```
 
 ---
