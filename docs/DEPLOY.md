@@ -1,9 +1,16 @@
 # Deploying xsteer.in
 
-| | Host | Deploys when |
-|---|---|---|
-| **Production** | `xsteer.in`, `www.xsteer.in` | a `v*.*.*` tag is pushed, or a manual run |
-| **Beta** | `beta.xsteer.in` | every push to `main` |
+| | Host | Serves | Deploys when |
+|---|---|---|---|
+| **Dev** | `dev.xsteer.in` | whatever branch you are working on — unstable | `cargo xtask dev` |
+| **Beta** | `beta.xsteer.in` | `main`, and only `main` — the release candidate | every push to `main` |
+| **Production** | `xsteer.in`, `www.xsteer.in` | the last tagged release | a `v*.*.*` tag, or a manual run |
+
+Each environment means exactly one thing, which is what makes the release gate worth
+anything: because beta serves only `main`, a green run there is evidence about the commit
+being tagged rather than about whichever branch was previewed last. Only production is
+indexable — `web/scripts/seo.mjs` fails closed, so dev and beta both carry
+`X-Robots-Tag: noindex, nofollow`.
 
 Both serve the same code from an assets-only Cloudflare Worker. The builds differ in
 exactly one respect: `DEPLOY_ENV=beta` bakes in `noindex` and a `Disallow: /` robots.txt,
@@ -11,6 +18,47 @@ so the beta site can never compete with the real one in search.
 
 `web/scripts/seo.mjs` **defaults to noindex** when `DEPLOY_ENV` is unset. A broken
 workflow costs a deploy, never the domain's search presence.
+
+---
+
+## The release flow
+
+```bash
+git switch -c feat/thing            # work; tests run on every push
+cargo xtask dev                     # push the branch, preview it on dev.xsteer.in
+cargo xtask prepare-release minor   # bump the version, open a CHANGELOG section
+cargo xtask dev                     # preview the release commit itself
+
+gh pr create && gh pr merge --squash
+git checkout main && git pull       # main's push deploys beta automatically
+cargo xtask release --wait          # waits for that beta run, then tags
+```
+
+### Squash merging and the beta gate
+
+A squash produces a **new commit** on `main` that no branch preview ever covered, so a
+gate keyed to the branch tip would not hold. It does not need to: pushing to `main`
+deploys beta, and `release` gates on *that* run — covering exactly the artifact
+production is about to serve. This is a stronger check than gating on the pre-merge
+branch, not a weaker one.
+
+The only cost is ordering. The post-merge beta deploy takes about 35 seconds, and
+`release` refuses until it is green. `--wait` blocks for it (up to ten minutes) instead
+of making you poll; without it, the error names which state you are in — no run yet, one
+still running, or one that failed.
+
+### What `cargo xtask release` refuses
+
+| Refuses when | Because |
+|---|---|
+| not on `main`, or the tree is dirty | a release must be a commit that exists |
+| `main` ≠ `origin/main` | tagging a stale local `main` produces a release nobody can find |
+| the tag already exists, locally or on origin | versions are not reusable |
+| no Deploy Beta run succeeded for this exact SHA | beta is only a gate if promotion checks it |
+
+The tag name comes from `[workspace.package] version` in `Cargo.toml` and is never
+typed, so the two cannot drift. `--skip-beta-check` exists for the case where you know
+why the run is missing; it is a deliberate override, not a fallback.
 
 ---
 
@@ -102,12 +150,14 @@ gh secret set CLOUDFLARE_ACCOUNT_ID --repo sakthipriyan/xsteer
 
 Push to `main` and the **Deploy Beta** workflow runs. Wrangler creates the
 `beta.xsteer.in` custom domain and its DNS record on first deploy — there is nothing to
-add in the Cloudflare DNS tab by hand.
+add in the Cloudflare DNS tab by hand. The same is true of `dev.xsteer.in` the first
+time `cargo xtask dev` runs.
 
-Production goes out on a tag:
+Production goes out on a tag, which `cargo xtask release` creates from the workspace
+version:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+cargo xtask release
 ```
 
 ---

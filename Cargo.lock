@@ -1532,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "xsteer-core"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "chrono",
@@ -1547,13 +1547,21 @@ dependencies = [
 
 [[package]]
 name = "xsteer-wasm"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
  "xfina",
  "xsteer-core",
+]
+
+[[package]]
+name = "xtask"
+version = "0.2.1"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

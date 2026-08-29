@@ -1,9 +1,10 @@
 name: Test
 
+# Previews happen before the merge, so tests have to as well: waiting for a pull
+# request meant nothing ran until the code was already on main.
 on:
-  pull_request:
   push:
-    branches: [main]
+  pull_request:
 
 concurrency:
   group: test-${{ github.ref }}

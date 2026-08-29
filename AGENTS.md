@@ -54,6 +54,26 @@ cd web && npm run dev
 Vite caches WASM aggressively. If the UI does not change after a rebuild, wipe
 `web/node_modules/.vite` and hard-refresh.
 
+## Releasing
+
+Three environments, each meaning one thing: `dev.xsteer.in` previews the branch you are
+working on, `beta.xsteer.in` is always `main`, and a tag is production. Never tag by hand
+— `cargo xtask release` derives the tag from `[workspace.package] version`, which is what
+keeps `Cargo.toml` and the tag in step.
+
+```bash
+cargo xtask dev                      # preview the current branch on dev.xsteer.in
+cargo xtask prepare-release <major|minor|patch>
+gh pr create && gh pr merge --squash
+git checkout main && git pull        # main's push deploys beta
+cargo xtask release --wait           # gates on that beta run, tags, deploys production
+```
+
+Squash merging is fine. The commit that lands on `main` is a new one no branch preview
+covered, but pushing to `main` deploys beta — and because beta serves only `main`, that
+run covers exactly the artifact production will serve. Runbook:
+[`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Testing
 
 Engine logic gets Rust tests. Planner work gets **snapshot tests**: a fixture vault in,
