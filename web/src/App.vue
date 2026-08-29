@@ -3,11 +3,25 @@ import { computed } from 'vue'
 import PlanPreview from './components/PlanPreview.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
 
-// The beta host serves the same build as production; this is the only thing that
-// differs at runtime, so early users always know which one they are looking at.
-const isBeta = computed(
-  () => typeof window !== 'undefined' && window.location.hostname.startsWith('beta.'),
-)
+// dev and beta serve the same build as production, so the host is the only thing
+// that tells them apart at runtime. Without a badge, dev.xsteer.in is
+// indistinguishable from the real site — which is how a preview gets mistaken
+// for what is actually live.
+const environment = computed(() => {
+  if (typeof window === 'undefined') return null
+  const host = window.location.hostname
+  if (host.startsWith('dev.')) return 'dev'
+  if (host.startsWith('beta.')) return 'beta'
+  return null
+})
+
+// Baked in at build time by vite.config.js. Empty when git or Cargo.toml was not
+// readable, in which case the line simply does not render.
+const commit = __COMMIT_HASH__
+const version = __APP_VERSION__
+const commitUrl = commit
+  ? `https://github.com/sakthipriyan/xsteer/commit/${commit.replace('*', '')}`
+  : null
 
 const steps = [
   {
@@ -72,10 +86,10 @@ const projects = [
           <img src="/favicon.svg" alt="" class="h-7 w-7" />
           <span class="text-lg font-semibold tracking-tight">Xsteer</span>
           <span
-            v-if="isBeta"
+            v-if="environment"
             class="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-primary"
           >
-            beta
+            {{ environment }}
           </span>
         </a>
         <nav class="flex items-center gap-6 text-sm text-muted-foreground">
@@ -247,9 +261,20 @@ const projects = [
       <div
         class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
       >
-        <p>
-          Xsteer is being built in the open. Nothing here is investment advice.
-        </p>
+        <div>
+          <p>Xsteer is being built in the open. Nothing here is investment advice.</p>
+          <p v-if="version || commit" class="mt-2 font-mono text-xs">
+            <span v-if="version">v{{ version }}</span>
+            <span v-if="version && commit" aria-hidden="true"> · </span>
+            <a
+              v-if="commit"
+              :href="commitUrl"
+              rel="noopener"
+              class="transition-colors hover:text-foreground"
+              >{{ commit }}</a
+            >
+          </p>
+        </div>
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
           <span class="font-medium text-foreground">GitHub</span>
           <a
