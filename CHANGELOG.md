@@ -11,8 +11,13 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ### Added
 
-- `xtask` with three commands: `beta` deploys the current branch to
-  beta.xsteer.in, `prepare-release` bumps the version and opens a changelog
+- A third environment, `dev.xsteer.in`, for previewing whatever branch is being
+  worked on. Beta now serves `main` and only `main`, so the two roles it used to
+  share — unstable preview and release candidate — are separated. The Deploy Beta
+  workflow refuses a dispatch against any other ref rather than letting a branch
+  quietly take beta's place.
+- `xtask` with three commands: `dev` deploys the current branch to
+  dev.xsteer.in, `prepare-release` bumps the version and opens a changelog
   section, and `release` tags `main`. The tag is derived from
   `[workspace.package] version`, never typed, so the two cannot drift.
 - `release` refuses to tag a commit unless a Deploy Beta run for that exact SHA

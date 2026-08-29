@@ -14,9 +14,22 @@
     { "pattern": "xsteer.in", "custom_domain": true }
   ],
 
+  // Three environments, each with one meaning. All serve the same code; the build
+  // differs only in crawler policy, which web/scripts/seo.mjs bakes in from
+  // DEPLOY_ENV, and only production is ever indexable.
   "env": {
-    // Same code as production; the build differs only in crawler policy, which
-    // web/scripts/seo.mjs bakes in from DEPLOY_ENV.
+    // Whatever branch is being worked on. Churns, and is expected to.
+    "dev": {
+      "name": "xsteer-dev",
+      "assets": {
+        "directory": "./web/dist",
+        "not_found_handling": "404-page"
+      },
+      "routes": [{ "pattern": "dev.xsteer.in", "custom_domain": true }]
+    },
+
+    // Always main, never a branch. This is the release candidate: what `cargo
+    // xtask release` checks before it will tag.
     "beta": {
       "name": "xsteer-beta",
       "assets": {

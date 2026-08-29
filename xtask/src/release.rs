@@ -1,8 +1,9 @@
 //! `prepare-release` and `release`.
 //!
 //! The split follows the branch-first flow: the version bump and changelog land
-//! on the feature branch, so they are part of what beta previews. `release`
-//! then only tags what is already on `main`.
+//! on the feature branch, so they are part of what dev previews. `release` then
+//! only tags what is already on `main`, gated on beta — which serves `main` and
+//! nothing else.
 
 use crate::util::{
     capture, current_branch, ensure_clean, ensure_gh_available, ensure_on_main,
@@ -55,7 +56,7 @@ pub fn run_prepare(args: &[String]) {
 
     println!("\nPrepared v{next} on {branch}.");
     println!("Next:");
-    println!("  cargo xtask beta                  # preview it");
+    println!("  cargo xtask dev                   # preview it");
     println!("  gh pr create && gh pr merge --squash");
     println!("  git checkout {MAIN} && git pull");
     println!("  cargo xtask release --wait        # waits for main's beta deploy, then tags");
@@ -122,10 +123,10 @@ struct BetaRun {
 /// commit* ever went green there — not whether beta is currently healthy, which
 /// would pass for a commit beta has never seen.
 ///
-/// Under a squash merge the commit that lands on `main` is a new one that no
-/// branch preview ever covered. That is fine: pushing to `main` deploys beta
-/// again, so the run this looks for is the post-merge one, covering exactly the
-/// artifact production is about to serve.
+/// Because beta serves only `main`, the run this finds is always the post-merge
+/// one. That is what makes it meaningful under a squash merge: the commit on
+/// `main` is a new one no branch preview covered, but beta deployed that exact
+/// artifact, which is the one production is about to serve.
 fn ensure_beta_passed(sha: &str, wait: bool) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(600);
 
@@ -148,10 +149,8 @@ fn ensure_beta_passed(sha: &str, wait: bool) {
                         ),
                         _ => format!(
                             "no beta deploy found for {}.\n\n  \
-                             Pushing to main deploys beta, so after a squash merge just wait for \
-                             that run\n  (`cargo xtask release --wait` blocks until it finishes). \
-                             If main has not moved,\n  run `cargo xtask beta` on the branch \
-                             first.",
+                             Pushing to main deploys beta, so after a merge just wait for that \
+                             run —\n  `cargo xtask release --wait` blocks until it finishes.",
                             &sha[..7]
                         ),
                     })

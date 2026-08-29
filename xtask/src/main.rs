@@ -1,12 +1,13 @@
 //! Development tasks for xsteer.
 //!
-//! The flow these commands serve: work on a branch, preview it on beta, squash
-//! it into main, tag the result. Pushing to main deploys beta again, so the
-//! squashed commit is itself validated there before `release` will tag it.
+//! Three environments, each with one meaning: dev previews the branch you are
+//! working on, beta is always `main`, and a tag is production. Pushing to `main`
+//! deploys beta, so the squashed commit is validated there before `release`
+//! will tag it — whatever the branch it came from looked like.
 
 use std::env;
 
-mod beta;
+mod dev;
 mod release;
 mod util;
 mod version;
@@ -14,7 +15,7 @@ mod version;
 const USAGE: &str = "\
 usage: cargo xtask <command>
 
-  beta                              deploy the current branch to beta.xsteer.in
+  dev                               deploy the current branch to dev.xsteer.in
   prepare-release <major|minor|patch>   bump the version and open a changelog section
   release [--wait] [--skip-beta-check]  tag main and deploy to xsteer.in";
 
@@ -22,7 +23,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     match args.get(1).map(String::as_str) {
-        Some("beta") => beta::run_beta(&args[2..]),
+        Some("dev") => dev::run_dev(&args[2..]),
         Some("prepare-release") => release::run_prepare(&args[2..]),
         Some("release") => release::run_release(&args[2..]),
         Some(other) => {

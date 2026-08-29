@@ -2,6 +2,11 @@ name: Deploy Beta
 
 # Every merge to main goes live on beta.xsteer.in. Production only moves on a tag,
 # so main is always safe to merge into.
+#
+# Beta means main and nothing else — `cargo xtask release` treats a green run here
+# as proof that the commit it is about to tag was really deployed. Branch previews
+# belong on dev.xsteer.in, which is why the dispatch path below refuses any other
+# ref rather than quietly letting a branch take beta's place.
 on:
   push:
     branches: [main]
@@ -22,6 +27,12 @@ jobs:
       name: beta
       url: https://beta.xsteer.in
     steps:
+      - name: Refuse a dispatch against anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Beta serves main. Use dev.xsteer.in (cargo xtask dev) for ${{ github.ref_name }}."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - name: Setup Node

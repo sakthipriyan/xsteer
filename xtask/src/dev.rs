@@ -1,13 +1,14 @@
-//! `cargo xtask beta` — put the current branch on beta.xsteer.in.
+//! `cargo xtask dev` — put the current branch on dev.xsteer.in.
 //!
-//! Beta is the preview host: it serves whatever branch was last pushed to it,
-//! not `main`. Previewing before the merge is the whole point — by the time a
-//! problem shows up on `main`, the thing you wanted to stop has already landed.
+//! Dev is the unstable host: it serves whatever branch you last pointed it at,
+//! and is expected to churn. Keeping branch previews here is what lets beta mean
+//! `main` and nothing else, so a green beta run is real evidence about the
+//! commit `release` is about to tag.
 
 use crate::util::{capture, current_branch, ensure_clean, ensure_gh_available, fail, run};
 use serde::Deserialize;
 
-const WORKFLOW: &str = "deploy-beta.yml";
+const WORKFLOW: &str = "deploy-dev.yml";
 
 #[derive(Deserialize)]
 struct Run {
@@ -18,9 +19,9 @@ struct Run {
     head_sha: String,
 }
 
-pub fn run_beta(args: &[String]) {
+pub fn run_dev(args: &[String]) {
     if !args.is_empty() {
-        fail("usage: cargo xtask beta");
+        fail("usage: cargo xtask dev");
     }
 
     ensure_gh_available();
@@ -39,7 +40,7 @@ pub fn run_beta(args: &[String]) {
 
     match find_run(&branch, &sha) {
         Some(run) => {
-            println!("\nDeploying {} to https://beta.xsteer.in", &sha[..7]);
+            println!("\nDeploying {} to https://dev.xsteer.in", &sha[..7]);
             println!("  {}", run.url);
             println!("  watch: gh run watch {}", run.database_id);
         }
