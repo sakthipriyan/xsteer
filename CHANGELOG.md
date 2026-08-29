@@ -9,6 +9,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-29
+
 ### Added
 
 - A third environment, `dev.xsteer.in`, for previewing whatever branch is being
