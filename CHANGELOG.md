@@ -9,6 +9,28 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-29
+
+### Added
+
+- The footer names every layer the build is assembled from — `Xsteer 0.2.3 ·
+  Xfingine 0.0.2 · Xfina 0.2.4` — with each name linked to its repository and
+  each version to the tag it was cut at. A parse bug belongs to Xfina and a
+  schedule bug to Xfingine, so a footer naming only Xsteer sends those reports
+  to the wrong repository.
+- Xfina's version is the one resolved in `Cargo.lock`, not the requirement in
+  `Cargo.toml`: what compiled in is what a bug report needs. Xfingine is not a
+  dependency yet, so crates.io answers for it until it is, and the locked
+  version takes over on its own the day it becomes one.
+
+### Changed
+
+- The build's commit now hangs off Xsteer alone, and only on dev, beta and a
+  local dev server. There the version is whatever `Cargo.toml` last said; on
+  production it is a tag, and the SHA adds nothing. The hosts that show it are
+  whitelisted rather than inferred, so an unfamiliar domain fails closed
+  instead of putting a SHA on the live site.
+
 ## [0.2.2] - 2026-08-29
 
 ### Added

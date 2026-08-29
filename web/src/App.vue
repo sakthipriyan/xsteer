@@ -15,13 +15,52 @@ const environment = computed(() => {
   return null
 })
 
-// Baked in at build time by vite.config.js. Empty when git or Cargo.toml was not
-// readable, in which case the line simply does not render.
+// Baked in at build time by vite.config.js. Empty when git, Cargo.toml or the
+// registry was not readable, in which case that entry simply does not render.
 const commit = __COMMIT_HASH__
 const version = __APP_VERSION__
-const commitUrl = commit
-  ? `https://github.com/sakthipriyan/xsteer/commit/${commit.replace('*', '')}`
-  : null
+
+// A commit is only worth showing where builds move faster than versions do. On
+// dev, on beta and on a local dev server, `version` is whatever Cargo.toml last
+// said — not a tag — so the SHA is the only thing that names the build. On
+// production the version *is* the tag and the SHA adds nothing.
+//
+// The hosts that show it are listed rather than inferred from "not production",
+// so a domain this file has not heard of fails closed instead of putting a SHA
+// on the live site. It hangs off Xsteer alone: the engines ship as released
+// crates, and a crates.io version is already exact.
+const showCommit = computed(() => {
+  if (!commit || typeof window === 'undefined') return false
+  if (environment.value !== null) return true
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
+})
+
+// Every repository the product is assembled from, in the order the Open source
+// section names them. A parse or planning bug belongs to one of the engines
+// rather than to Xsteer, so a report is only actionable with their versions too.
+//
+// Each part links to what it names: the repository, the tag that version was cut
+// at, the commit itself. All three repositories tag `v<version>` — the format
+// `cargo xtask release` writes — so the tag URL is derivable rather than stored.
+const products = computed(() =>
+  [
+    { name: 'Xsteer', version, commit: showCommit.value ? commit : null },
+    { name: 'Xfingine', version: __XFINGINE_VERSION__, commit: null },
+    { name: 'Xfina', version: __XFINA_VERSION__, commit: null },
+  ]
+    .filter((p) => p.version)
+    .map((p) => {
+      const repoUrl = `https://github.com/sakthipriyan/${p.name.toLowerCase()}`
+      return {
+        ...p,
+        repoUrl,
+        versionUrl: `${repoUrl}/tree/v${p.version}`,
+        // The dirty marker is for the reader, not for GitHub.
+        commitUrl: p.commit ? `${repoUrl}/commit/${p.commit.replace('*', '')}` : null,
+      }
+    }),
+)
 
 const steps = [
   {
@@ -266,16 +305,32 @@ const projects = [
       >
         <p>Xsteer is being built in the open. Nothing here is investment advice.</p>
         <!-- Build provenance, deliberately quiet: it is for a bug report, not a reader. -->
-        <p v-if="version || commit" class="font-mono text-xs sm:text-right">
-          <span v-if="version">v{{ version }}</span>
-          <span v-if="version && commit" aria-hidden="true"> · </span>
-          <a
-            v-if="commit"
-            :href="commitUrl"
-            rel="noopener"
-            class="transition-colors hover:text-foreground"
-            >{{ commit }}</a
-          >
+        <p v-if="products.length" class="font-mono text-xs sm:text-right">
+          <template v-for="(p, i) in products" :key="p.name">
+            <span v-if="i" aria-hidden="true"> · </span>
+            <span class="whitespace-nowrap">
+              <a
+                :href="p.repoUrl"
+                rel="noopener"
+                class="transition-colors hover:text-foreground"
+                >{{ p.name }}</a
+              >{{ ' '
+              }}<a
+                :href="p.versionUrl"
+                rel="noopener"
+                class="transition-colors hover:text-foreground"
+                >{{ p.version }}</a
+              ></span
+            >
+            <span v-if="p.commit" class="whitespace-nowrap">
+              (<a
+                :href="p.commitUrl"
+                rel="noopener"
+                class="transition-colors hover:text-foreground"
+                >{{ p.commit }}</a
+              >)</span
+            >
+          </template>
         </p>
       </div>
     </footer>
