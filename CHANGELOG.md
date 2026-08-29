@@ -9,6 +9,35 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-29
+
+### Added
+
+- The footer carries the build's version and short commit, linked to that
+  commit on GitHub, so a bug report can name the build it came from. Both are
+  baked in at build time and degrade independently: CI supplies `GITHUB_SHA`,
+  a local build asks git and marks a dirty tree with `*`, and a checkout
+  without git history simply omits the commit.
+- The version shown comes from `[workspace.package]` in `Cargo.toml` — the
+  same line `cargo xtask release` tags from — rather than adding a third place
+  a version has to be remembered.
+
+### Fixed
+
+- The host badge only recognised beta, so `dev.xsteer.in` rendered no badge at
+  all and was indistinguishable from production. It now reports dev and beta
+  alike.
+- `cargo xtask release` treated an in-flight beta deploy as a failure: `gh`
+  reports an unfinished run's conclusion as an empty string, not null, so the
+  "still running" branch never fired. Classification now keys on `status`,
+  which means `--wait` waits instead of giving up in exactly the case it
+  exists for.
+
+### Removed
+
+- The footer's repeated list of repositories. The Open source section already
+  introduces all three with the context that makes them worth clicking.
+
 ## [0.2.1] - 2026-08-29
 
 ### Added
@@ -69,6 +98,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
   noindex build so a misconfigured workflow costs a deploy rather than the
   domain's search presence.
 
-[Unreleased]: https://github.com/sakthipriyan/xsteer/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sakthipriyan/xsteer/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/sakthipriyan/xsteer/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/sakthipriyan/xsteer/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sakthipriyan/xsteer/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sakthipriyan/xsteer/releases/tag/v0.1.0
