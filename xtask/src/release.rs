@@ -113,10 +113,14 @@ pub fn run_release(args: &[String]) {
 struct BetaRun {
     #[serde(rename = "headSha")]
     head_sha: String,
-    /// Null while a run is still going. A run in flight is not a pass, so an
-    /// absent conclusion must never satisfy the gate.
+    /// "queued", "in_progress" or "completed". This, not `conclusion`, is what
+    /// says whether a run has finished — gh reports an unfinished run's
+    /// conclusion as an empty string, so treating a falsy conclusion as
+    /// "running" silently classified in-flight runs as failures.
+    status: String,
+    /// Only meaningful once `status` is "completed".
     #[serde(default)]
-    conclusion: Option<String>,
+    conclusion: String,
 }
 
 /// Beta is only a gate if promotion checks it. This asks whether *this exact
@@ -137,7 +141,7 @@ fn ensure_beta_passed(sha: &str, wait: bool) {
                 return;
             }
             BetaStatus::Failed => fail(format!(
-                "the beta deploy for {} did not succeed — fix it before promoting",
+                "the beta deploy for {} finished without succeeding — fix it before promoting",
                 &sha[..7]
             )),
             state => {
@@ -187,7 +191,7 @@ fn beta_status(sha: &str) -> BetaStatus {
             "--limit",
             "50",
             "--json",
-            "headSha,conclusion",
+            "headSha,status,conclusion",
         ],
     );
 
@@ -207,10 +211,10 @@ fn classify(runs: &[BetaRun], sha: &str) -> BetaStatus {
         BetaStatus::Missing
     } else if matching
         .iter()
-        .any(|r| r.conclusion.as_deref() == Some("success"))
+        .any(|r| r.status == "completed" && r.conclusion == "success")
     {
         BetaStatus::Succeeded
-    } else if matching.iter().any(|r| r.conclusion.is_none()) {
+    } else if matching.iter().any(|r| r.status != "completed") {
         BetaStatus::Running
     } else {
         BetaStatus::Failed
@@ -238,34 +242,45 @@ fn open_changelog_section(version: &str) {
 mod tests {
     use super::*;
 
-    fn run(sha: &str, conclusion: Option<&str>) -> BetaRun {
+    fn done(sha: &str, conclusion: &str) -> BetaRun {
         BetaRun {
             head_sha: sha.to_string(),
-            conclusion: conclusion.map(String::from),
+            status: "completed".to_string(),
+            conclusion: conclusion.to_string(),
+        }
+    }
+
+    /// How gh actually reports a run in flight: a status of "in_progress" and an
+    /// **empty** conclusion, never a null one.
+    fn in_flight(sha: &str) -> BetaRun {
+        BetaRun {
+            head_sha: sha.to_string(),
+            status: "in_progress".to_string(),
+            conclusion: String::new(),
         }
     }
 
     #[test]
     fn a_commit_beta_never_saw_is_missing() {
-        let runs = vec![run("aaa", Some("success"))];
+        let runs = vec![done("aaa", "success")];
         assert!(classify(&runs, "bbb") == BetaStatus::Missing);
     }
 
     #[test]
     fn a_successful_run_passes() {
-        let runs = vec![run("aaa", Some("success"))];
+        let runs = vec![done("aaa", "success")];
         assert!(classify(&runs, "aaa") == BetaStatus::Succeeded);
     }
 
     #[test]
     fn an_unfinished_run_is_not_a_pass() {
-        let runs = vec![run("aaa", None)];
+        let runs = vec![in_flight("aaa")];
         assert!(classify(&runs, "aaa") == BetaStatus::Running);
     }
 
     #[test]
     fn a_failed_run_is_a_failure() {
-        let runs = vec![run("aaa", Some("failure"))];
+        let runs = vec![done("aaa", "failure")];
         assert!(classify(&runs, "aaa") == BetaStatus::Failed);
     }
 
@@ -273,14 +288,24 @@ mod tests {
     /// count rather than the earlier failure sticking.
     #[test]
     fn a_rerun_success_beats_an_earlier_failure() {
-        let runs = vec![run("aaa", Some("failure")), run("aaa", Some("success"))];
+        let runs = vec![done("aaa", "failure"), done("aaa", "success")];
         assert!(classify(&runs, "aaa") == BetaStatus::Succeeded);
     }
 
     /// Cancelled is a conclusion, but not a passing one.
     #[test]
     fn cancelled_is_not_a_pass() {
-        let runs = vec![run("aaa", Some("cancelled"))];
+        let runs = vec![done("aaa", "cancelled")];
         assert!(classify(&runs, "aaa") == BetaStatus::Failed);
+    }
+
+    /// The regression this fixes: an in-flight run reported as Failed made
+    /// `release` say "fix beta before promoting" and made --wait give up
+    /// immediately, in precisely the case --wait exists for.
+    #[test]
+    fn a_queued_run_is_not_a_failure() {
+        let mut queued = in_flight("aaa");
+        queued.status = "queued".to_string();
+        assert!(classify(&[queued], "aaa") == BetaStatus::Running);
     }
 }
