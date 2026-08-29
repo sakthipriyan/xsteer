@@ -9,6 +9,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-29
+
 ### Added
 
 - The footer names every layer the build is assembled from — `Xsteer 0.2.3 ·
