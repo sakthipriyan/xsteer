@@ -19,7 +19,7 @@ Salary  ──▶  Expenses  ──▶  Credit card payment  ──▶  Investab
 | **Ledger** | unified transactions, tagging rules, manual overrides | Rust |
 | **Registry** | accounts, policies, cards, inflows, target allocation | Rust |
 | **Planner** | balances + obligations + policies → ordered plan | Rust |
-| **Vault** | encrypted IndexedDB persistence, export/import | JS (WebCrypto) |
+| **Vault** | encrypted IndexedDB persistence, export/import | JS (WebCrypto) + Rust (Argon2id) |
 | **UI** | render plan, edit policies, tick off steps | Vue 3 |
 
 Vue holds **no financial logic**. It decrypts the vault, hands state to WASM, renders
@@ -232,14 +232,124 @@ In Xsteer they become views over one model:
 
 ## 6. Storage
 
-Vault encrypted at rest in IndexedDB. Key derived from a user passphrase via
-PBKDF2-SHA256 (WebCrypto, high iteration count), random per-vault salt, AES-GCM with a
-fresh IV per write. The passphrase is never persisted; the derived key lives in memory
-for the session only. Export produces the same encrypted blob for backup and
-cross-device transfer.
+**`.xsteer` is the durable interchange format; IndexedDB is disposable.** Nothing
+important couples to browser storage — clearing it costs a cache, not the ledger.
 
-**Consequence to be explicit about with the user: a forgotten passphrase means the data
-is unrecoverable.** No reset path exists by design.
+```
+┌───────────────────────────┐
+│       Xsteer WASM         │  Vault + rebuilt indexes — all querying happens here
+└─────────────┬─────────────┘
+              │ decrypt / load
+┌─────────────▼─────────────┐
+│         IndexedDB         │  opaque encrypted chunks — disposable cache
+└─────────────┬─────────────┘
+              │ durable user action
+┌─────────────▼─────────────┐
+│      .xsteer export       │  encrypted, portable — the durable artifact
+└───────────────────────────┘
+```
+
+### Keys
+
+Envelope encryption. A random 256-bit AES-GCM **data key** encrypts content and never
+changes; independent wrappers unwrap it, so adding an unlock method or changing a
+passphrase never re-encrypts the vault.
+
+| Wrapper | Role | Friction |
+|---|---|---|
+| **Device key** | opening on a browser already used before | none |
+| **Passphrase** | portable — required on every export | typing |
+| **Recovery key** | portable — required on every export | emergencies only |
+| **WebAuthn PRF** | portable convenience, deferred to M3 | a biometric touch |
+
+The device key is a `CryptoKey` with `extractable: false` held in IndexedDB, so **there is
+no passphrase prompt to open the app**. The passphrase guards what leaves the machine.
+
+**Every `.xsteer` carries both a passphrase and a recovery-key wrapper**, so a backup is
+always recoverable without the original browser or device. PRF is convenience only — a
+passkey is bound to one ecosystem, and a PRF-only backup would die with the account
+holding it.
+
+Passphrase wrapping uses Argon2id (64 MiB, t=3, p=1) in Rust/WASM on a worker; the
+parameters travel in the export header, so they can be retuned without orphaning old
+backups. Content encryption stays in WebCrypto.
+
+### What "encrypted at rest" means here
+
+> Financial data is encrypted at rest, and the raw data key is not exportable through the
+> Web Crypto API.
+
+That is the whole claim. `extractable: false` stops the key bytes leaving through
+WebCrypto; it does **not** stop JavaScript running in this origin from using the key, and
+it does not survive a compromised browser. Two consequences: a strict CSP is a first-class
+control here rather than hygiene, and XSS is a total compromise regardless of what is
+encrypted on disk.
+
+### Chunks
+
+Each chunk is a self-contained encrypted record:
+
+```
+format_version │ vault_id │ chunk_id │ generation │ nonce │ ciphertext │ tag
+```
+
+AAD binds `{vault_id, chunk_id, schema_version, generation}`, which buys two properties:
+`ledger/2026-08` cannot be relocated into `ledger/2025-08`, and because `generation` is
+monotonic, a stale chunk cannot silently replace a newer one.
+
+| Chunk | Size | Churn |
+|---|---|---|
+| `registry` | KBs | accounts, policies, cards — frequent |
+| `ledger/{YYYY-MM}` | ~100s of KB | append-mostly |
+| `overrides` | small | manual tags, identity overrides |
+
+Editing one transaction rewrites one period, not the decade. All dirty chunks are written
+in a single `readwrite` transaction, so a partial write cannot leave chunks at
+inconsistent generations.
+
+### Querying
+
+Storage is opaque; querying happens over the decrypted `Vault` in memory. The persisted
+model is minimal and versioned; indexes are runtime-only, rebuilt on load in O(n)
+(~10–50 ms at 100k transactions), which keeps the format small and migrations tractable.
+
+| Persisted (serde) | Runtime (rebuilt, never serialized) |
+|---|---|
+| `accounts: Vec<Account>` | `by_account: HashMap<AccountId, Vec<TxnIdx>>` |
+| `transactions: Vec<Transaction>` | `by_date: Vec<TxnIdx>` — sorted, binary-searchable |
+| `overrides: Vec<Override>` | `by_category: HashMap<CategoryId, Vec<TxnIdx>>` |
+
+At this scale — ~5 MB typical, ~30 MB for a decade across eight accounts — that beats an
+embedded database outright: a binary search answers in microseconds what SQLite would pay
+VFS round-trips and page decryption for. Open time is dominated by deserialization, not
+crypto (~5 ms to decrypt 5 MB, ~50 ms to parse it), so if opening ever gets slow the fix
+is a binary serde format, not a storage engine.
+
+### Durability
+
+`.xsteer` is self-describing — the header carries the format version and KDF parameters,
+so a backup taken today still opens after the schema has moved on. Filenames carry the
+date and a short content hash, making a downloads folder a legible version history.
+
+Export belongs at the **end of ingest**, as the closing step of the workflow, not in a
+banner the user can dismiss. The app tracks the last export against a vault mutation
+counter and says plainly when the backup has fallen behind.
+
+**The consequence to be explicit about with the user: browser storage is disposable, so an
+out-of-date export is what actually loses data.** A forgotten passphrase costs that
+backup — not the live vault — and there is no reset path, because there is nobody on the
+other end to reset it.
+
+### Milestones
+
+| | Scope |
+|---|---|
+| **M1 — Persistence** | encrypted chunks, device-key unlock, atomic saves, generation counters |
+| **M2 — Portable durability** | `.xsteer`, passphrase and recovery-key wrappers, import/export, the save step |
+| **M3 — Unlock UX** | WebAuthn PRF, password-manager integration, home-screen guidance |
+
+M1 and M2 together are the storage model; PRF is deliberately outside them, since nothing
+in the security or durability argument depends on it.
 
 ---
 
@@ -247,7 +357,7 @@ is unrecoverable.** No reset path exists by design.
 
 | Phase | Scope |
 |---|---|
-| **1 — Ingest** | upload bank / card / MF / IBKR files, account identity, dedup, encrypted vault, ledger view |
+| **1 — Ingest** | upload bank / card / MF / IBKR files, account identity, dedup, encrypted vault (M1–M2, §6), ledger view |
 | **2 — Registry** | accounts, policies, cards, salary detection and setup |
 | **3 — Tagging** | rule engine, categories, manual overrides, spend analysis |
 | **4 — Planner** | obligations, cashflow solver, the to-do list, execution tracking |

@@ -203,15 +203,18 @@ const projects = [
             <span class="font-medium text-foreground"
               >Statement parsing and every calculation run as WebAssembly inside your own
               browser.</span
-            > Your vault is stored encrypted on your device, with a key derived from
-            a passphrase that is never transmitted and never written down anywhere.
+            > Your vault is encrypted at rest on your device, with a key the browser will
+            not hand back out through its Web Crypto API. The app itself opens without a
+            passphrase &mdash; a passphrase guards the backup you export.
           </p>
           <p class="mt-4 leading-relaxed text-muted-foreground">
             That cuts both ways, and it is worth saying plainly:
             <span class="font-medium text-foreground"
-              >a forgotten passphrase means unrecoverable data.</span
+              >browser storage is disposable.</span
             >
-            There is no reset link, because there is nobody on the other end to reset it.
+            Clearing site data wipes the vault, and the backup you exported is the only
+            copy that survives it. There is no restore link, because there is nobody on
+            the other end to restore it.
           </p>
         </div>
         <div>
