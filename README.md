@@ -31,14 +31,17 @@ Everything runs in your browser. Nothing is uploaded anywhere.
 | **Parsing** | the published `Xfina` crate — no vendored parsers, no path deps |
 | **Engine** | Rust/WASM. Ledger, policies, planner and allocator all live in `core/` |
 | **UI** | Vue 3 + Vite + Tailwind, following the Xfina web app. Renders only — no financial logic |
-| **Storage** | IndexedDB, encrypted at rest with a key derived from a user passphrase |
+| **Storage** | encrypted chunks in IndexedDB under a device-held key; a portable `.xsteer` export is the durable copy |
 | **Shipping** | one WASM module exposing both parsing and planning, so the parse schema cannot drift |
 
 The full domain model, planner algorithm and phase plan are in
 [`docs/DESIGN.md`](docs/DESIGN.md).
 
-> **The passphrase cannot be reset.** It is never persisted and never leaves the
-> device, which also means a lost passphrase means lost data. Keep a backup export.
+> **Browser storage is disposable — the export is your durable copy.** Clearing site
+> data wipes the vault, so keep a current `.xsteer` export. The passphrase guarding that
+> export is never persisted and never leaves the device, which also means a forgotten one
+> costs you the backup. There is no reset link, because there is nobody on the other end
+> to reset it.
 
 ---
 
