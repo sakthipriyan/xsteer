@@ -5,7 +5,9 @@
 //! `main` and nothing else, so a green beta run is real evidence about the
 //! commit `release` is about to tag.
 
-use crate::util::{capture, current_branch, ensure_clean, ensure_gh_available, fail, run};
+use crate::util::{
+    capture, current_branch, ensure_clean, ensure_gh_available, fail, run, succeeds,
+};
 use serde::Deserialize;
 
 const WORKFLOW: &str = "deploy-dev.yml";
@@ -36,6 +38,16 @@ pub fn run_dev(args: &[String]) {
     run("git", &["push", "--set-upstream", "origin", &branch]);
 
     println!("Dispatching {WORKFLOW} against {branch}...");
+    // GitHub only registers a workflow_dispatch trigger once the file is on the
+    // default branch, so a brand-new workflow 404s from every branch including
+    // its own. That reads as "the workflow is missing" unless it is spelled out.
+    if !succeeds("gh", &["workflow", "view", WORKFLOW]) {
+        fail(format!(
+            "{WORKFLOW} is not dispatchable yet.\n\n  \
+             GitHub only registers workflow_dispatch triggers for workflows on the default \
+             branch,\n  so this one has to reach main before it can be used from any branch."
+        ));
+    }
     run("gh", &["workflow", "run", WORKFLOW, "--ref", &branch]);
 
     match find_run(&branch, &sha) {
