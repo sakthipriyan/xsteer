@@ -1,8 +1,8 @@
 //! Development tasks for xsteer.
 //!
-//! The flow these commands serve: work on a branch, preview it on beta, merge
-//! it fast-forward into main, tag that commit. Because the merge is a
-//! fast-forward, the commit beta validated is the commit that gets tagged.
+//! The flow these commands serve: work on a branch, preview it on beta, squash
+//! it into main, tag the result. Pushing to main deploys beta again, so the
+//! squashed commit is itself validated there before `release` will tag it.
 
 use std::env;
 
@@ -16,7 +16,7 @@ usage: cargo xtask <command>
 
   beta                              deploy the current branch to beta.xsteer.in
   prepare-release <major|minor|patch>   bump the version and open a changelog section
-  release [--skip-beta-check]       tag main and deploy to xsteer.in";
+  release [--wait] [--skip-beta-check]  tag main and deploy to xsteer.in";
 
 fn main() {
     let args: Vec<String> = env::args().collect();

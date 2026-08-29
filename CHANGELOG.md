@@ -17,6 +17,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
   `[workspace.package] version`, never typed, so the two cannot drift.
 - `release` refuses to tag a commit unless a Deploy Beta run for that exact SHA
   concluded successfully, which is what makes beta a gate rather than a habit.
+  Squash merges are covered by the automatic `main` → beta deploy; `--wait`
+  blocks for it rather than making you poll.
 
 ### Changed
 

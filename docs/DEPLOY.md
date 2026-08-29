@@ -17,25 +17,31 @@ workflow costs a deploy, never the domain's search presence.
 ## The release flow
 
 Work happens on a branch, is previewed on beta, then merged and tagged. Beta serves
-whatever branch was last deployed to it — not `main` — so a change is seen in a real
-deploy *before* it lands.
+whatever was last deployed to it — a branch you pushed, or `main` — so a change is seen
+in a real deploy before it reaches production.
 
 ```bash
-git switch -c feat/thing        # work; tests run on every push
-cargo xtask beta                # push the branch and deploy it to beta.xsteer.in
+git switch -c feat/thing            # work; tests run on every push
+cargo xtask beta                    # push the branch and deploy it to beta.xsteer.in
 cargo xtask prepare-release minor   # bump the version, open a CHANGELOG section
-cargo xtask beta                # preview the release commit itself
+cargo xtask beta                    # preview the release commit itself
 
-git rebase main
-git checkout main
-git merge --ff-only feat/thing  # fast-forward, so the tested commit *is* the main commit
-cargo xtask release             # tag it; production deploys
+gh pr create && gh pr merge --squash
+git checkout main && git pull
+cargo xtask release --wait          # tag it; production deploys
 ```
 
-**The merge must be a fast-forward.** A squash creates a new commit, so the SHA beta
-validated would no longer exist on `main` — the tag would point at code that, in that
-exact form, was never deployed anywhere. Rebase first and the fast-forward is always
-available.
+### Squash merging and the beta gate
+
+A squash produces a **new commit** on `main` that no branch preview ever covered, so a
+gate keyed to the branch tip would not hold. It does not need to: pushing to `main`
+deploys beta again, and `release` gates on *that* run — the post-merge one, covering
+exactly the artifact production is about to serve. This is a stronger check than gating
+on the pre-merge branch, not a weaker one.
+
+The only cost is ordering. The post-merge beta deploy takes about 35 seconds, and
+`release` refuses until it is green. `--wait` blocks for it (up to ten minutes) instead
+of making you poll; without it you get a message telling you which state it is in.
 
 ### What `cargo xtask release` refuses
 

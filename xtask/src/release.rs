@@ -55,16 +55,19 @@ pub fn run_prepare(args: &[String]) {
 
     println!("\nPrepared v{next} on {branch}.");
     println!("Next:");
-    println!("  cargo xtask beta                 # preview it");
-    println!("  git rebase {MAIN} && git checkout {MAIN} && git merge --ff-only {branch}");
-    println!("  cargo xtask release              # tag it");
+    println!("  cargo xtask beta                  # preview it");
+    println!("  gh pr create && gh pr merge --squash");
+    println!("  git checkout {MAIN} && git pull");
+    println!("  cargo xtask release --wait        # waits for main's beta deploy, then tags");
 }
 
 pub fn run_release(args: &[String]) {
     let mut skip_beta_check = false;
+    let mut wait = false;
     for arg in args {
         match arg.as_str() {
             "--skip-beta-check" => skip_beta_check = true,
+            "--wait" => wait = true,
             other => fail(format!("unknown argument `{other}`")),
         }
     }
@@ -91,7 +94,7 @@ pub fn run_release(args: &[String]) {
         println!("Skipping the beta check by request.");
     } else {
         ensure_gh_available();
-        ensure_beta_passed(&sha);
+        ensure_beta_passed(&sha, wait);
     }
 
     println!("Tagging {} as {tag}...", &sha[..7]);
@@ -118,7 +121,64 @@ struct BetaRun {
 /// Beta is only a gate if promotion checks it. This asks whether *this exact
 /// commit* ever went green there — not whether beta is currently healthy, which
 /// would pass for a commit beta has never seen.
-fn ensure_beta_passed(sha: &str) {
+///
+/// Under a squash merge the commit that lands on `main` is a new one that no
+/// branch preview ever covered. That is fine: pushing to `main` deploys beta
+/// again, so the run this looks for is the post-merge one, covering exactly the
+/// artifact production is about to serve.
+fn ensure_beta_passed(sha: &str, wait: bool) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(600);
+
+    loop {
+        match beta_status(sha) {
+            BetaStatus::Succeeded => {
+                println!("Beta is green for {}.", &sha[..7]);
+                return;
+            }
+            BetaStatus::Failed => fail(format!(
+                "the beta deploy for {} did not succeed — fix it before promoting",
+                &sha[..7]
+            )),
+            state => {
+                if !wait {
+                    fail(match state {
+                        BetaStatus::Running => format!(
+                            "the beta deploy for {} is still running — re-run with --wait",
+                            &sha[..7]
+                        ),
+                        _ => format!(
+                            "no beta deploy found for {}.\n\n  \
+                             Pushing to main deploys beta, so after a squash merge just wait for \
+                             that run\n  (`cargo xtask release --wait` blocks until it finishes). \
+                             If main has not moved,\n  run `cargo xtask beta` on the branch \
+                             first.",
+                            &sha[..7]
+                        ),
+                    })
+                }
+
+                if std::time::Instant::now() >= deadline {
+                    fail(format!(
+                        "gave up waiting for a beta deploy of {}",
+                        &sha[..7]
+                    ));
+                }
+                println!("Waiting for the beta deploy of {}...", &sha[..7]);
+                std::thread::sleep(std::time::Duration::from_secs(10));
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum BetaStatus {
+    Succeeded,
+    Failed,
+    Running,
+    Missing,
+}
+
+fn beta_status(sha: &str) -> BetaStatus {
     let json = capture(
         "gh",
         &[
@@ -135,33 +195,27 @@ fn ensure_beta_passed(sha: &str) {
     let runs: Vec<BetaRun> = serde_json::from_str(&json)
         .unwrap_or_else(|e| fail(format!("could not read `gh run list` output: {e}")));
 
+    classify(&runs, sha)
+}
+
+/// A re-run turns a red commit green, so any success wins. An unfinished run is
+/// never a pass — that is the difference between "beta is fine" and "beta has
+/// actually served this commit".
+fn classify(runs: &[BetaRun], sha: &str) -> BetaStatus {
     let matching: Vec<&BetaRun> = runs.iter().filter(|r| r.head_sha == sha).collect();
 
     if matching.is_empty() {
-        fail(format!(
-            "no beta deploy found for {} — run `cargo xtask beta` on the branch first, or pass \
-             --skip-beta-check if you know why it is missing",
-            &sha[..7]
-        ));
-    }
-
-    if !matching
+        BetaStatus::Missing
+    } else if matching
         .iter()
         .any(|r| r.conclusion.as_deref() == Some("success"))
     {
-        let still_running = matching.iter().any(|r| r.conclusion.is_none());
-        fail(format!(
-            "beta deploys for {} exist but none succeeded{} — fix beta before promoting",
-            &sha[..7],
-            if still_running {
-                " (one is still running)"
-            } else {
-                ""
-            }
-        ));
+        BetaStatus::Succeeded
+    } else if matching.iter().any(|r| r.conclusion.is_none()) {
+        BetaStatus::Running
+    } else {
+        BetaStatus::Failed
     }
-
-    println!("Beta is green for {}.", &sha[..7]);
 }
 
 /// Turns the standing `## [Unreleased]` heading into a dated section for this
@@ -179,4 +233,55 @@ fn open_changelog_section(version: &str) {
 
     fs::write(CHANGELOG, content.replacen(UNRELEASED, &replacement, 1))
         .unwrap_or_else(|e| fail(format!("could not write {CHANGELOG}: {e}")));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(sha: &str, conclusion: Option<&str>) -> BetaRun {
+        BetaRun {
+            head_sha: sha.to_string(),
+            conclusion: conclusion.map(String::from),
+        }
+    }
+
+    #[test]
+    fn a_commit_beta_never_saw_is_missing() {
+        let runs = vec![run("aaa", Some("success"))];
+        assert!(classify(&runs, "bbb") == BetaStatus::Missing);
+    }
+
+    #[test]
+    fn a_successful_run_passes() {
+        let runs = vec![run("aaa", Some("success"))];
+        assert!(classify(&runs, "aaa") == BetaStatus::Succeeded);
+    }
+
+    #[test]
+    fn an_unfinished_run_is_not_a_pass() {
+        let runs = vec![run("aaa", None)];
+        assert!(classify(&runs, "aaa") == BetaStatus::Running);
+    }
+
+    #[test]
+    fn a_failed_run_is_a_failure() {
+        let runs = vec![run("aaa", Some("failure"))];
+        assert!(classify(&runs, "aaa") == BetaStatus::Failed);
+    }
+
+    /// Re-running a failed deploy is the normal fix, so the later success has to
+    /// count rather than the earlier failure sticking.
+    #[test]
+    fn a_rerun_success_beats_an_earlier_failure() {
+        let runs = vec![run("aaa", Some("failure")), run("aaa", Some("success"))];
+        assert!(classify(&runs, "aaa") == BetaStatus::Succeeded);
+    }
+
+    /// Cancelled is a conclusion, but not a passing one.
+    #[test]
+    fn cancelled_is_not_a_pass() {
+        let runs = vec![run("aaa", Some("cancelled"))];
+        assert!(classify(&runs, "aaa") == BetaStatus::Failed);
+    }
 }

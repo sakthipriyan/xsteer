@@ -63,13 +63,15 @@ in step.
 ```bash
 cargo xtask beta                     # deploy the current branch to beta.xsteer.in
 cargo xtask prepare-release <major|minor|patch>
-git rebase main && git checkout main && git merge --ff-only <branch>
-cargo xtask release                  # gates on beta, tags, deploys production
+gh pr create && gh pr merge --squash
+git checkout main && git pull
+cargo xtask release --wait           # gates on beta, tags, deploys production
 ```
 
-**Merge fast-forward, never squash.** `release` refuses to tag a commit unless a Deploy
-Beta run succeeded for that exact SHA; a squash creates a new commit, so the validated
-SHA would no longer be on `main` and the gate could not hold. Runbook:
+Squash merging is fine. The commit that lands on `main` is a new one no branch preview
+covered, but pushing to `main` deploys beta again — and that post-merge run is what
+`release` gates on, covering exactly the artifact production will serve. `--wait` blocks
+until it finishes rather than making you poll. Runbook:
 [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Testing
