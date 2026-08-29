@@ -259,33 +259,21 @@ const projects = [
     <!-- Footer -->
     <footer class="border-t">
       <div
-        class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
+        class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-end sm:justify-between"
       >
-        <div>
-          <p>Xsteer is being built in the open. Nothing here is investment advice.</p>
-          <p v-if="version || commit" class="mt-2 font-mono text-xs">
-            <span v-if="version">v{{ version }}</span>
-            <span v-if="version && commit" aria-hidden="true"> · </span>
-            <a
-              v-if="commit"
-              :href="commitUrl"
-              rel="noopener"
-              class="transition-colors hover:text-foreground"
-              >{{ commit }}</a
-            >
-          </p>
-        </div>
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <span class="font-medium text-foreground">GitHub</span>
+        <p>Xsteer is being built in the open. Nothing here is investment advice.</p>
+        <!-- Build provenance, deliberately quiet: it is for a bug report, not a reader. -->
+        <p v-if="version || commit" class="font-mono text-xs sm:text-right">
+          <span v-if="version">v{{ version }}</span>
+          <span v-if="version && commit" aria-hidden="true"> · </span>
           <a
-            v-for="p in projects"
-            :key="p.name"
-            :href="p.href"
+            v-if="commit"
+            :href="commitUrl"
             rel="noopener"
             class="transition-colors hover:text-foreground"
-            >{{ p.name }}</a
+            >{{ commit }}</a
           >
-        </div>
+        </p>
       </div>
     </footer>
   </div>
