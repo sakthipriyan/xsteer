@@ -53,14 +53,14 @@ const reads = [
   { kind: 'International brokerage', items: 'Interactive Brokers activity statements' },
 ]
 
-// The three repositories the product is assembled from. Ordered the way the data
-// flows: parsed by Xfina, computed by Xfingine, planned and rendered by Xsteer.
+// The three repositories the product is assembled from, ordered from the reader
+// outwards: the thing they came here for first, then the layers underneath it.
 const projects = [
   {
-    name: 'Xfina',
-    tagline: 'Open source data parser',
-    body: 'Reads Indian bank, credit card, mutual fund and brokerage statements into structured data. Rust compiled to WebAssembly, so parsing happens on your machine.',
-    href: 'https://github.com/sakthipriyan/xfina',
+    name: 'Xsteer',
+    tagline: 'Open source personal finance OS',
+    body: 'This project. Turns a parsed vault into an ordered, dated plan for the month, and gives you the interface to execute it against.',
+    href: 'https://github.com/sakthipriyan/xsteer',
   },
   {
     name: 'Xfingine',
@@ -69,10 +69,10 @@ const projects = [
     href: 'https://github.com/sakthipriyan/xfingine',
   },
   {
-    name: 'Xsteer',
-    tagline: 'Open source personal finance OS',
-    body: 'This project. Turns a parsed vault into an ordered, dated plan for the month, and gives you the interface to execute it against.',
-    href: 'https://github.com/sakthipriyan/xsteer',
+    name: 'Xfina',
+    tagline: 'Open source data parser',
+    body: 'Reads Indian bank, credit card, mutual fund and brokerage statements into structured data. Rust compiled to WebAssembly, so parsing happens on your machine.',
+    href: 'https://github.com/sakthipriyan/xfina',
   },
 ]
 </script>
@@ -233,9 +233,9 @@ const projects = [
           <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Open source</h2>
           <p class="mt-3 leading-relaxed text-muted-foreground">
             Software that decides what to do with your salary should be software you can
-            read. Every layer &mdash; the parser, the computation engines, and the planner
-            that ties them together &mdash; is a separate Apache-2.0 repository you can
-            audit, fork, or run yourself.
+            read. Every layer &mdash; the planner, the computation engines beneath it, and
+            the parser that reads your statements &mdash; is a separate Apache-2.0
+            repository you can audit, fork, or run yourself.
           </p>
         </div>
         <div class="mt-10 grid gap-6 sm:grid-cols-3">
