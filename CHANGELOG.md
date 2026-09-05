@@ -9,6 +9,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-09-05
+
 ### Changed
 
 - The hero eyebrow reads "In active development" rather than "In development".
