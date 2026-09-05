@@ -1,0 +1,59 @@
+name: Deploy
+
+# The body all three environments share. dev, beta and prod differ only in the
+# environment they claim, the URL they report, and the wrangler command — before
+# this file existed, these five steps were duplicated three ways.
+#
+# The environment name doubles as DEPLOY_ENV: the two have always been equal.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment to deploy into, and the DEPLOY_ENV the build uses.
+        required: true
+        type: string
+      url:
+        description: The site this environment serves.
+        required: true
+        type: string
+      wrangler_command:
+        description: wrangler command to run. Production deploys the default env.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build site
+        working-directory: web
+        env:
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: npm run build
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: ${{ inputs.wrangler_command }}
