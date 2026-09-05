@@ -43,9 +43,4 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
 
-  approve:
-    name: Approve PR
-    needs: [web, engine]
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "All parallel checks passed!"
+
