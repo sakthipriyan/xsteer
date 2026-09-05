@@ -1,4 +1,4 @@
-name: Approve PR
+name: Check PR
 
 # Previews happen before the merge, so tests have to as well: waiting for a pull
 # request meant nothing ran until the code was already on main.
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 concurrency:
-  group: test-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 
 permissions:

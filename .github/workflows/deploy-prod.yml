@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
+  group: deploy-prod
   cancel-in-progress: false
 
 permissions:
@@ -40,6 +40,15 @@ jobs:
       name: production
       url: https://xsteer.in
     steps:
+      # verify_tag is skipped on a manual run, so prod would otherwise deploy
+      # whatever ref the dispatch picked. Beta refuses the same way.
+      - name: Refuse a dispatch against anything but main
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Production deploys from a v*.*.* tag, or manually from main."
+          echo "Refusing ${{ github.ref_name }}."
+          exit 1
+
       - uses: actions/checkout@v7
 
       - name: Setup Node
