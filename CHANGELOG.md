@@ -9,6 +9,8 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-09-05
+
 ## [0.2.3] - 2026-08-29
 
 ### Added
