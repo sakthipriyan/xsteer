@@ -1,4 +1,4 @@
-name: Deploy Production
+name: Deploy Prod
 
 # Production deploys are deliberate: a version tag, or a manual run.
 on:

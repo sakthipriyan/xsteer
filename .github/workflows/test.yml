@@ -1,4 +1,4 @@
-name: CI
+name: Approve PR
 
 # Previews happen before the merge, so tests have to as well: waiting for a pull
 # request meant nothing ran until the code was already on main.
