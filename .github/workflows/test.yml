@@ -4,7 +4,8 @@ name: Test
 # request meant nothing ran until the code was already on main.
 on:
   push:
-  pull_request:
+    branches-ignore:
+      - main
 
 concurrency:
   group: test-${{ github.ref }}
