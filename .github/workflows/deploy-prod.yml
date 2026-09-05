@@ -14,15 +14,27 @@ permissions:
   contents: read
 
 jobs:
-  verify_tag:
-    name: Verify tag is on main
-    if: github.event_name == 'push'
+  # Both guards live in one job that always runs and fails from inside a step.
+  # The tag check used to be a job gated by `if`, which meant a skipped job on
+  # the manual path and an `always()` conditional on the deploy to work around
+  # it; a step-level `if` needs neither.
+  verify_ref:
+    name: Verify the ref
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Refuse a dispatch against anything but main
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Production deploys from a v*.*.* tag, or manually from main."
+          echo "Refusing ${{ github.ref_name }}."
+          exit 1
+
       - name: Check tag is on main
+        if: github.event_name == 'push'
         run: |
           git fetch origin main
           if ! git branch -r --contains ${{ github.sha }} | grep -E -q '(^|\s)origin/main$'; then
@@ -32,45 +44,10 @@ jobs:
 
   deploy:
     name: Deploy to xsteer.in
-    needs: [verify_tag]
-    # `needs` on a skipped job would skip this one too, so allow the manual path.
-    if: always() && (needs.verify_tag.result == 'success' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    environment:
-      name: production
+    needs: [verify_ref]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
       url: https://xsteer.in
-    steps:
-      # verify_tag is skipped on a manual run, so prod would otherwise deploy
-      # whatever ref the dispatch picked. Beta refuses the same way.
-      - name: Refuse a dispatch against anything but main
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
-        run: |
-          echo "Production deploys from a v*.*.* tag, or manually from main."
-          echo "Refusing ${{ github.ref_name }}."
-          exit 1
-
-      - uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Build site
-        working-directory: web
-        env:
-          DEPLOY_ENV: production
-        run: npm run build
-
-      - name: Deploy to Cloudflare
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+      wrangler_command: deploy
+    secrets: inherit

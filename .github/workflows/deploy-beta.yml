@@ -20,12 +20,12 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy to beta.xsteer.in
+  # A caller job that delegates with `uses` cannot also carry steps, so the ref
+  # check is its own job. It always runs and fails from inside a step, which
+  # keeps `needs` honest: gating the job itself would skip the deploy instead.
+  verify_ref:
+    name: Verify the ref
     runs-on: ubuntu-latest
-    environment:
-      name: beta
-      url: https://beta.xsteer.in
     steps:
       - name: Refuse a dispatch against anything but main
         if: github.ref != 'refs/heads/main'
@@ -33,28 +33,12 @@ jobs:
           echo "Beta serves main. Use dev.xsteer.in (cargo xtask dev) for ${{ github.ref_name }}."
           exit 1
 
-      - uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Build site
-        working-directory: web
-        env:
-          DEPLOY_ENV: beta
-        run: npm run build
-
-      - name: Deploy to Cloudflare
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env beta
+  deploy:
+    name: Deploy to beta.xsteer.in
+    needs: [verify_ref]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: beta
+      url: https://beta.xsteer.in
+      wrangler_command: deploy --env beta
+    secrets: inherit
