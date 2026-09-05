@@ -103,10 +103,10 @@ pub fn run_release(args: &[String]) {
     run("git", &["push", "origin", &tag]);
 
     println!(
-        "\nPushed {tag}. Deploy Production is now running for {}.",
+        "\nPushed {tag}. Deploy Prod is now running for {}.",
         &sha[..7]
     );
-    println!("  gh run watch $(gh run list --workflow=deploy-production.yml --limit 1 --json databaseId --jq '.[0].databaseId')");
+    println!("  gh run watch $(gh run list --workflow=deploy-prod.yml --limit 1 --json databaseId --jq '.[0].databaseId')");
 }
 
 #[derive(Deserialize)]
