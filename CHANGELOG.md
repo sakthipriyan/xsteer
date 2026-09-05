@@ -9,6 +9,13 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+### Changed
+
+- The hero eyebrow reads "In active development" rather than "In development".
+  Both are true, but the first answers the question a visitor is actually
+  asking about a site that says it is unfinished: whether anyone is still
+  working on it.
+
 ## [0.2.4] - 2026-09-05
 
 ## [0.2.3] - 2026-08-29
