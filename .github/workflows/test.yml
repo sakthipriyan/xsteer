@@ -1,9 +1,8 @@
-name: Test
+name: CI
 
 # Previews happen before the merge, so tests have to as well: waiting for a pull
 # request meant nothing ran until the code was already on main.
 on:
-  push:
   pull_request:
 
 concurrency:
@@ -15,7 +14,7 @@ permissions:
 
 jobs:
   web:
-    name: Build web
+    name: Web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,14 +25,13 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - working-directory: web
         run: npm ci
-      # Build as beta: an unset DEPLOY_ENV must never produce an indexable build.
       - working-directory: web
         env:
           DEPLOY_ENV: beta
         run: npm run build
 
   engine:
-    name: Test engine
+    name: Engine
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,3 +42,5 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
+
+
