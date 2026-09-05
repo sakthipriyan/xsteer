@@ -150,7 +150,7 @@ const projects = [
       />
       <div class="mx-auto max-w-6xl px-6 pb-16 pt-20 sm:pt-28">
         <p class="mb-5 text-sm font-medium uppercase tracking-widest text-primary">
-          In development
+          In active development
         </p>
         <h1 class="max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
           Your statements in.<br />
