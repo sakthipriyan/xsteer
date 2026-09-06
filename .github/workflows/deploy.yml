@@ -20,6 +20,11 @@ on:
         description: wrangler command to run. Production deploys the default env.
         required: true
         type: string
+      ref:
+        description: Ref to build. Empty means the ref that triggered the run.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -33,6 +38,8 @@ jobs:
       url: ${{ inputs.url }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v7
