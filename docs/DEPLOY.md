@@ -4,7 +4,7 @@
 |---|---|---|---|
 | **Dev** | `dev.xsteer.in` | whatever branch you are working on — unstable | `cargo xtask dev` |
 | **Beta** | `beta.xsteer.in` | `main`, and only `main` — the release candidate | every push to `main` |
-| **Production** | `xsteer.in`, `www.xsteer.in` | the last tagged release | a `v*.*.*` tag, or a manual run |
+| **Production** | `xsteer.in`, `www.xsteer.in` | the last tagged release | a `v*.*.*` tag, pushed or rolled back to |
 
 Each environment means exactly one thing, which is what makes the release gate worth
 anything: because beta serves only `main`, a green run there is evidence about the commit
@@ -187,7 +187,26 @@ npm run deploy:production
 
 ## Rolling back
 
-Cloudflare keeps every deployed version:
+Production serves whichever tag was deployed last, so rolling back is deploying an
+earlier one. Run **Deploy Prod** from `main`, naming the tag:
+
+```bash
+gh workflow run deploy-prod.yml --field tag=v0.2.4
+```
+
+It runs from `main` and names the tag rather than being dispatched *at* the tag, because
+`workflow_dispatch` resolves the workflow file from the ref it is given. Dispatching
+`v0.2.4` fails outright — `deploy-prod.yml` does not exist at that tag, only
+`deploy-production.yml` does — and for a newer tag it would quietly run that tag's frozen
+copy of the workflow, guards included, so a later fix to the deploy path would never
+reach the rollback that needed it. Only the code being built comes from the tag.
+
+The tag must match `v*.*.*`, exist, and be on `main`, so the rollback path cannot put
+untagged code on the live site either. Nothing is rewritten: `main` and the version in
+`Cargo.toml` still say what they said, and the next release rolls forward from there.
+
+Cloudflare also keeps every deployed version, which is the faster route when the deploy
+itself is the problem rather than the code:
 
 ```bash
 npx wrangler deployments list --name xsteer
