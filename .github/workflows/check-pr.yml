@@ -18,14 +18,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The job reports either way; it just does nothing when nothing it
+      # builds has changed. A docs-only pull request should not pay for an
+      # npm install.
+      #
+      # xfina and xfingine keep two path lists here, because what is worth
+      # testing and what a consumer receives are different sets. For a site
+      # they are the same set: what a visitor receives is what the site
+      # renders. core/ and wasm/ are absent for that reason -- the site does
+      # not consume the engine yet, and v0.2.4 changed both while shipping an
+      # empty changelog section, correctly.
+      - name: Check changes and changelog
+        id: check_changes
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          BASE=origin/${{ github.base_ref }}
+          CHANGED=$(git diff --name-only $BASE...HEAD -- web/ | grep -v -i '\.md$' || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "The site changed:"
+            echo "$CHANGED"
+            echo "----------------------------------------"
+
+            if ! git diff --name-only $BASE...HEAD | grep -q "^CHANGELOG.md$"; then
+              echo "::error::The site changed but CHANGELOG.md was not updated. Document what a visitor will see."
+              exit 1
+            fi
+            echo "Success: CHANGELOG.md was updated!"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing the site is built from changed; skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v7
+        if: steps.check_changes.outputs.run == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - working-directory: web
+      - if: steps.check_changes.outputs.run == 'true'
+        working-directory: web
         run: npm ci
-      - working-directory: web
+      - if: steps.check_changes.outputs.run == 'true'
+        working-directory: web
         env:
           DEPLOY_ENV: beta
         run: npm run build
@@ -35,15 +74,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Two lists here, as in xfina and xfingine, because the sets differ:
+      # xtask is release tooling, worth compiling and linting but not a change
+      # anyone reads about. The engine is the product, and the changelog claims
+      # SemVer, so core/ and wasm/ have to be documented even while the site
+      # does not load them yet.
+      - name: Check changes and changelog
+        id: check_changes
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          BASE=origin/${{ github.base_ref }}
+
+          TEST_CHANGED=$(git diff --name-only $BASE...HEAD -- core/ wasm/ xtask/ Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
+          RELEASE_CHANGED=$(git diff --name-only $BASE...HEAD -- core/ wasm/ Cargo.toml Cargo.lock | grep -v -i '\.md$' || true)
+
+          if [ -n "$RELEASE_CHANGED" ]; then
+            echo "The engine changed:"
+            echo "$RELEASE_CHANGED"
+            echo "----------------------------------------"
+
+            if ! git diff --name-only $BASE...HEAD | grep -q "^CHANGELOG.md$"; then
+              echo "::error::The engine changed but CHANGELOG.md was not updated. Document it."
+              exit 1
+            fi
+            echo "Success: CHANGELOG.md was updated!"
+          else
+            echo "Only tooling changed; no changelog entry required."
+          fi
+
+          if [ -n "$TEST_CHANGED" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Rust changed; skipping the build and tests."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.check_changes.outputs.run == 'true'
         with:
           components: clippy, rustfmt
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test --all
+        if: steps.check_changes.outputs.run == 'true'
+      - if: steps.check_changes.outputs.run == 'true'
+        run: cargo fmt --all -- --check
+      - if: steps.check_changes.outputs.run == 'true'
+        run: cargo clippy --all-targets -- -D warnings
+      - if: steps.check_changes.outputs.run == 'true'
+        run: cargo test --all
 
       # xsteer-wasm is cdylib + rlib, so everything above builds it for the
       # host and it can still fail for the one platform it exists for.
-      - run: cargo build --target wasm32-unknown-unknown -p xsteer-wasm
+      - if: steps.check_changes.outputs.run == 'true'
+        run: cargo build --target wasm32-unknown-unknown -p xsteer-wasm
