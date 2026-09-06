@@ -15,15 +15,16 @@ Salary  ──▶  Expenses  ──▶  Credit card payment  ──▶  Investab
 
 | Layer | Responsibility | Lives in |
 |---|---|---|
-| **Ingest** | files → `Xfina` parse → normalized entities, account identity, dedup | Rust |
-| **Ledger** | unified transactions, tagging rules, manual overrides | Rust |
-| **Registry** | accounts, policies, cards, inflows, target allocation | Rust |
-| **Planner** | balances + obligations + policies → ordered plan | Rust |
+| **Core Engines** | `Xfina` (parsing files) and `Xfingine` (categorization) | Rust |
+| **Controller** | `Xsteer` orchestrates the engines, computes identity, dedup | Rust (WASM) |
+| **Ledger** | unified transactions, multi-dimensional tagging, overrides | Rust (WASM) |
+| **Registry** | accounts (by persona), policies, cards, inflows, target allocation | Rust (WASM) |
+| **Planner** | balances + obligations + policies → ordered plan (to-do list) | Rust (WASM) |
 | **Vault** | encrypted IndexedDB persistence, export/import | JS (WebCrypto) + Rust (Argon2id) |
 | **UI** | render plan, edit policies, tick off steps | Vue 3 |
 
-Vue holds **no financial logic**. It decrypts the vault, hands state to WASM, renders
-what comes back, and re-encrypts. Every number the user sees was computed in Rust.
+Vue holds **no financial logic**. It decrypts the vault, hands state to the WASM controller, renders
+what comes back, and re-encrypts. The UI supports progressive complexity (from simple bill tracking to full planning), but the core outputs an absolute, deterministic to-do list computed in Rust.
 
 ---
 
@@ -51,6 +52,7 @@ is persisted as an identity override that wins over the derived key.
 ```rust
 struct Account {
     id: AccountId,
+    owner: PersonaId,         // Groups accounts by family member (e.g. self, spouse)
     institution: String,      // "HDFC Bank" — full names, per Xfina convention
     kind: AccountKind,        // Savings | Current | CreditCard | Brokerage | MutualFund
     masked_number: String,
@@ -75,10 +77,11 @@ struct Policy {
 
 ```rust
 enum Obligation {
-    CreditCardDue  { card: AccountId },                       // pay this card in full
-    FixedExpense   { name: String, amount: Money, day: u8 },   // rent, EMI, mandate
-    PlannedExpense { name: String, amount: Money, due: Date }, // one-off
-    Reserve        { name: String, amount: Money },            // earmark, never spend
+    CreditCardDue  { card: AccountId, split_id: Option<String> }, // pay this card (or a partial category slice)
+    FixedExpense   { name: String, amount: Money, day: u8 },      // rent, EMI, mandate
+    PlannedExpense { name: String, amount: Money, due: Date },    // one-off
+    ManualBill     { name: String, amount: Money, due: Date, card: Option<AccountId> }, // e.g. yearly mobile recharge on CC
+    Reserve        { name: String, amount: Money },               // earmark, never spend
 }
 ```
 
@@ -130,17 +133,29 @@ omits running balance (some credit cards), the key falls back to
 
 Re-importing an overlapping statement is therefore idempotent.
 
-### Tagging
+### Tagging & Categorization (Xfingine)
 
 Ordered rule list, first match wins:
 
 ```rust
 struct Rule { matcher: Matcher, category: CategoryId, tags: Vec<TagId> }
-enum Matcher { Narration(Regex), AmountBetween(Money, Money), Counterparty(String), All(Vec<Matcher>) }
+enum Matcher { Narration(Regex), AmountBetween(Money, Money), Counterparty(String), CardName(String), All(Vec<Matcher>) }
 ```
 
+Tags enable **multi-dimensional tracking**:
+- **Nature**: Want vs. Need
+- **Frequency**: Monthly vs. Yearly vs. One-off
+- **Merchant**: Derived or matched from counterparty strings.
+
+This historic tagged data fuels baseline fixed expense predictions for upcoming months.
 Manual per-transaction overrides live in a separate table keyed by `TxnId` and always
 beat rules — so re-running rules after editing them never clobbers hand corrections.
+
+### Execution Rails & Routing
+
+Accounts, Credit Cards, and Policies configure **Execution Rails** (e.g., `Samsung Wallet`, `HDFC NetBanking`, `Cred`, `Money2World`, `RTGS`). 
+- When generating the plan, Xsteer resolves the specific payment route. 
+- For example, an international investment might specify an intermediate routing requirement: if the rail is `ICICI + Cred`, the planner generates a two-step sequence: an internal RTGS transfer to ICICI, followed by the actual international investment via Cred.
 
 ---
 
@@ -165,20 +180,30 @@ struct PlanStep {
 }
 
 enum StepKind {
-    Transfer    { from: AccountId, to: AccountId, amount: Money, reason: String },
-    CardPayment { from: AccountId, card: AccountId, amount: Money, due_date: Date },
-    Investment  { from: AccountId, asset: AssetId, amount: Money },
+    Transfer    { from: AccountId, to: AccountId, amount: Money, reason: String, rail: Option<String> },
+    CardPayment { from: AccountId, card: AccountId, amount: Money, due_date: Date, rail: Option<String> },
+    Investment  { from: AccountId, asset: AssetId, amount: Money, rail: Option<String> },
     Manual      { text: String },     // "get an FX quote", "raise an NEFT limit"
 }
 ```
 
-Rendered, that is exactly the requested output:
+Rendered, the UI groups the requested output into actionable "Login Sessions" so the user can execute the plan linearly with zero thinking. It also provides **traceability**—clicking any number reveals the exact math used to compute it (e.g., *"Medical card split is ₹5000, current balance ₹10000, target ₹10000 → move ₹5000"*):
 
 ```
-1. by 05 Sep   Account 1 → Account 2        ₹10,000   fund card due
-2. by 08 Sep   Account 2 → HDFC card        ₹24,310   statement due 10 Sep
-3. by 15 Sep   Account 2 → Nifty 50          ₹5,000   underweight 2.1%
-4. by 15 Sep   Account 2 → Gold              ₹5,000   underweight 1.4%
+**Session 1: SBI (Parent)**
+  [ ] by 05 Sep   SBI → HDFC                  ₹10,000   via Samsung Pay
+
+**Session 2: HDFC (Self)**
+  [ ] by 08 Sep   HDFC → HDFC Infinia         ₹24,310   via HDFC NetBanking
+  [ ] by 15 Sep   HDFC → ICICI                ₹30,000   via RTGS (Investment Routing)
+
+**Session 3: ICICI & FX Execution**
+  [ ] by 15 Sep   Action                      Use BHIM/Cred to book FX Retail deal
+  [ ] by 15 Sep   Action                      Login into ICICI, settle the deal
+  [ ] by 16 Sep   Action                      Verify deposit notification
+  [ ] by 16 Sep   ICICI → Nasdaq 100          ₹30,000   Buy shares in IBKR
+  [ ] by 17 Sep   Action                      Update Payroll team with Form 122
+  [ ] by 30 Sep   Action                      Verify Payroll team updated TDS sheet
 ```
 
 ### Planner algorithm — deterministic, in order
@@ -198,9 +223,9 @@ Rendered, that is exactly the requested output:
    investable surplus.
 7. **Allocate.** Feed investable into the drift-minimizing allocator (ported from the
    Family SIP Allocator): buy only underweight assets, never sell, honor asset-group
-   caps, and apply LRS/TCS constraints to international legs.
+   caps, and apply TCS impact to international legs. *(Note: LRS headroom is not natively tracked, but compliance workflows are).*
 8. **Order steps** by due date, then by dependency — money must arrive in an account
-   before a step spends from it.
+   before a step spends from it. Workflows like international investments are expanded into multi-step sequences (e.g., FX Retail Booking → Buy Shares → File Form 122).
 
 ### Warnings
 
@@ -210,7 +235,7 @@ The planner never silently produces an infeasible plan:
 - `FloorBreach { account, by }` — a floor had to be violated to meet a due date
 - `DueDateAtRisk { card, due_date }` — funding cannot land before the due date
 - `StaleStatement { account, last_seen }` — planning on data older than a cycle
-- `LrsHeadroom { used, remaining }` — international leg approaching the ₹10L FY limit
+- `Form122Pending { asset }` — international leg compliance not yet accepted by payroll
 
 ---
 
@@ -221,9 +246,9 @@ In Xsteer they become views over one model:
 
 | Tool | Becomes |
 |---|---|
-| Family SIP Allocator | the allocator in planner step 7 |
-| RealValue Portfolio | holdings + XIRR view over CAS/IBKR imports |
-| FX Engine | LRS/TCS constraint on international investment legs |
+| Family SIP Allocator | the allocator in planner step 7 (supports perpetual rebalancing) |
+| RealValue Portfolio | real-time holdings + XIRR view over CAS/IBKR imports |
+| FX Engine | TCS impact, true cost on international investment legs, and Form 122 workflow generation |
 | EMI Engine | `Obligation::FixedExpense` generator |
 | Emergency Fund | `Policy::floor` on the buffer account |
 | IBKR Tax Engine | stays separate — tax reporting, not cashflow |
@@ -363,3 +388,31 @@ in the security or durability argument depends on it.
 | **4 — Planner** | obligations, cashflow solver, the to-do list, execution tracking |
 | **5 — Allocate** | target allocation, drift, splits, LRS/TCS |
 | **6 — Open** | user-defined queries and views over their own vault |
+
+## 8. End-to-End Vision & Progressive Complexity
+
+Xsteer is designed to serve as a complete financial cockpit requiring **zero day-to-day thinking**—everything is delegated to policy. 
+However, the engine supports progressive complexity:
+- **Level 1 (Basic)**: Bank account and manual bill management only.
+- **Level 2 (Tracking)**: Simple portfolio and XIRR tracking via CAS/IBKR imports.
+- **Level 3 (Planning)**: Full utilization of policies, automatic sweeps, and the perpetual rebalancing allocator.
+
+Regardless of the complexity level, the primary goal of Xsteer remains absolute: **to emit a simple, deterministic to-do list of actionable money items for the end user.**
+
+### Interface & Ingest UX
+
+From the user's perspective, the monthly ritual begins with a bulk upload:
+1. The user downloads all required statements (SBI, HDFC, ICICI, CAMS, IBKR, Axis) into a single local folder.
+2. In the Xsteer UI, the user selects and uploads all these files at once.
+3. The engine automatically parses, identifies accounts, and deduplicates. Exception handling is minimal: if a statement lacks an identifier (e.g., ICICI credit card reports omitting the card ID), the UI simply prompts the user to manually map it. The rest are completely self-contained.
+
+Once ingested, the execution UI groups the output by **Login Sessions** (as shown in the planner section), allowing the user to execute the plan linearly. To build trust in this "zero thinking" model, the UI provides full **Traceability**: clicking any computed number reveals exactly how it was derived from the ingested data and policies.
+
+### Real-World Workflow Example
+
+To ensure the domain model handles real-world complexity, Xsteer supports advanced family setups natively:
+- **Personas**: Accounts are grouped by owner (e.g., Self, Spouse, Child) to ensure the planner tracks funds and limits accurately per person, never mixing one persona's obligations with another's balances unless explicitly configured.
+- **Account Policies**: Users define goals like "Target ₹40,000 post-bills" (`target: 40000`). The planner pulls funds for obligations first, then sweeps from the Salary account to top up the remaining balance to exactly ₹40,000.
+- **Shared/Split Credit Cards**: Add-on cards or distinct categories of spends on a single card (e.g., HDFC Infinia) can be split. The `Medical` portion generates a partial `CardPayment` obligation directly funded from a dedicated Medical account, while the `Child` portion is funded from a separate persona's account.
+- **Payment Routing**: The planner explicitly resolves execution rails. Rather than just saying "Transfer ₹10,000", it dictates the exact real-world app and method needed: "Transfer via Samsung Wallet" or "Invest via Cred/Money2World". It natively handles multi-hop sequences if an execution rail demands it (e.g., routing funds to ICICI first to utilize its specific FX gateway).
+- **[Perpetual Rebalancing Framework](https://github.com/sakthipriyan/building-wealth)**: The absorbed Family SIP Engine doesn't just calculate one-off SIPs. By monitoring real-time holdings and the inflow of investable surplus, the planner perpetually routes new money to underweight assets to maintain the target asset allocation without incurring the tax drag of selling.
