@@ -64,10 +64,14 @@ keeps `Cargo.toml` and the tag in step.
 ```bash
 cargo xtask dev                      # preview the current branch on dev.xsteer.in
 cargo xtask prepare-release <major|minor|patch>
-gh pr create && gh pr merge --squash
+gh pr create --web                   # a person opens it, then squash merges
 git checkout main && git pull        # main's push deploys beta
 cargo xtask release --wait           # gates on that beta run, tags, deploys production
 ```
+
+**Agents never create a pull request.** Push the branch and run `gh pr create --web`, which
+opens the form in a browser; a person writes it up and submits it. Opening a pull request
+is the decision that work is ready for review, and that decision is not delegated.
 
 Squash merging is fine. The commit that lands on `main` is a new one no branch preview
 covered, but pushing to `main` deploys beta — and because beta serves only `main`, that
