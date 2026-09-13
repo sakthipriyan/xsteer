@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import ClubWelcome from './components/ClubWelcome.vue'
 import PlanPreview from './components/PlanPreview.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
 
@@ -121,7 +122,7 @@ const projects = [
     <!-- Nav -->
     <header class="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="/" class="flex items-center gap-2.5">
+        <a href="/" class="flex shrink-0 items-center gap-2.5">
           <img src="/favicon.svg" alt="" class="h-7 w-7" />
           <span class="text-lg font-semibold tracking-tight">Xsteer</span>
           <span
@@ -131,16 +132,31 @@ const projects = [
             {{ environment }}
           </span>
         </a>
-        <nav class="flex items-center gap-6 text-sm text-muted-foreground">
+        <nav class="flex items-center gap-3 text-sm text-muted-foreground sm:gap-6">
           <a href="#how" class="hidden transition-colors hover:text-foreground sm:inline">How it works</a>
           <a href="#privacy" class="hidden transition-colors hover:text-foreground sm:inline"
             >Privacy First</a
           >
-          <a href="#open-source" class="transition-colors hover:text-foreground">Open Source</a>
+          <!-- A phone has room for the logo, one call to action and the toggle. The
+               newsletter is the one worth the space; Open Source is a scroll away.
+               Below 360px even that is too wide beside the dev and beta badge, so the
+               name drops out rather than the button pushing into the logo. -->
+          <a href="#open-source" class="hidden transition-colors hover:text-foreground sm:inline"
+            >Open Source</a
+          >
+          <a
+            href="https://club.xsteer.in"
+            rel="noopener"
+            class="inline-flex h-9 items-center whitespace-nowrap rounded-lg bg-primary px-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Join<span class="hidden min-[360px]:inline">&nbsp;Xsteer</span>&nbsp;Club
+          </a>
           <ThemeToggle />
         </nav>
       </div>
     </header>
+
+    <ClubWelcome />
 
     <!-- Hero -->
     <section class="relative overflow-hidden">
