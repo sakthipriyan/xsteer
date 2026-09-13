@@ -9,6 +9,15 @@ opens a dated section below. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-13
+
+### Added
+
+- A "Join Xsteer Club" button in the header links to the newsletter at
+  [club.xsteer.in](https://club.xsteer.in).
+- `/?club=1`, where the newsletter's confirmation email lands, shows a
+  dismissible "You're in the Xsteer Club" note.
+
 ## [0.2.5] - 2026-09-05
 
 ### Changed
